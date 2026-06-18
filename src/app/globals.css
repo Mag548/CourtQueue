@@ -85,11 +85,20 @@ h1, h2, h3, h4 {
   height: 100%;
 }
 
-/* Mobile — prevent body scroll bounce when sheet is open ─────────────────── */
+/* Mobile — lock body so the map can't cause page scroll ─────────────────── */
 @media (max-width: 767px) {
-  html, body {
-    overscroll-behavior: none;
+  html {
+    overflow: hidden;
     height: 100%;
+    overscroll-behavior: none;
+  }
+  body {
+    overflow: hidden;
+    height: 100%;
+    overscroll-behavior: none;
+    /* Prevent iOS rubber-band scroll */
+    position: fixed;
+    width: 100%;
   }
 }
 

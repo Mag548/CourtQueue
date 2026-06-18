@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CourtMap } from "@/components/map/court-map";
 import { CourtCard } from "@/components/courts/court-card";
@@ -74,6 +74,10 @@ export default function HomePage() {
   const [mobileTab, setMobileTab] = useState<"map" | "courts" | "active" | "account">("courts");
   const [mobileSheet, setMobileSheet] = useState<"hidden" | "peek" | "open">("peek");
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Drag gesture state for bottom sheet
+  const dragStartY = useRef<number | null>(null);
+  const dragStartSheet = useRef<"hidden" | "peek" | "open">("peek");
 
   // ── Active count ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -178,6 +182,24 @@ export default function HomePage() {
       setMobileSheet("open");
     }
   }, [selectedCourt]);
+
+  // Restore sensible mobile state after sign-in (e.g. Google OAuth redirect)
+  useEffect(() => {
+    if (user && typeof window !== "undefined" && window.innerWidth < 768) {
+      if (mobileTab === "map") return; // user intentionally on map view
+      setMobileTab("courts");
+      setMobileSheet((s) => (s === "hidden" ? "peek" : s));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Prevent iOS Safari from scrolling the page behind the mobile map
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth >= 768) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 
   // ── Court list (shared by desktop sidebar + mobile sheet) ─────────────────
   const CourtList = () => (
@@ -383,10 +405,10 @@ export default function HomePage() {
       {/* ═══════════════════════════════════════════════════════
           MOBILE LAYOUT  (below md)
       ═══════════════════════════════════════════════════════ */}
-      <div className="flex md:hidden flex-col h-full relative overflow-hidden">
+      <div className="md:hidden fixed inset-0 overflow-hidden" style={{ zIndex: 1 }}>
 
         {/* ── Full-screen map ── */}
-        <div className="absolute inset-0 z-0">{mapEl}</div>
+        <div className="absolute inset-0 z-0" style={{ touchAction: "pan-x pan-y" }}>{mapEl}</div>
 
         {/* ── Floating top bar ── */}
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-4 pb-2 pointer-events-none">
@@ -416,7 +438,7 @@ export default function HomePage() {
           className="mobile-sheet absolute left-0 right-0 z-30 flex flex-col"
           style={{
             bottom: "var(--mobile-nav-h)",
-            height: "calc(88% - var(--mobile-nav-h))",
+            height: "calc(100% - var(--mobile-nav-h))",
             transform:
               mobileSheet === "open"
                 ? "translateY(0)"
@@ -432,6 +454,23 @@ export default function HomePage() {
             <button
               className="flex-shrink-0 flex flex-col items-center gap-2 pt-3 pb-2 px-4"
               onClick={() => setMobileSheet((s) => (s === "open" ? "peek" : "open"))}
+              onTouchStart={(e) => {
+                dragStartY.current = e.touches[0].clientY;
+                dragStartSheet.current = mobileSheet;
+              }}
+              onTouchEnd={(e) => {
+                if (dragStartY.current === null) return;
+                const dy = dragStartY.current - e.changedTouches[0].clientY;
+                if (Math.abs(dy) < 30) return; // tap, not swipe
+                if (dy > 0) {
+                  // swiped up → open
+                  setMobileSheet("open");
+                } else {
+                  // swiped down → peek or hidden
+                  setMobileSheet(dragStartSheet.current === "open" ? "peek" : "hidden");
+                }
+                dragStartY.current = null;
+              }}
             >
               <div className="w-10 h-1 rounded-full bg-white/20" />
               {/* Sheet header */}
