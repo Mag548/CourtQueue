@@ -49,6 +49,37 @@ function PickleballSVG({ size = 72 }: { size?: number }) {
   );
 }
 
+/* ── Paddle SVG (transition) ─────────────────────────────────────────────── */
+function PaddleSVG({ size = 90 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 60 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="tpd-face" x1="5" y1="3" x2="37" y2="35" gradientUnits="userSpaceOnUse">
+          <stop stopColor="hsl(142 72% 58%)" />
+          <stop offset="1" stopColor="hsl(155 80% 36%)" />
+        </linearGradient>
+        <radialGradient id="tpd-shine" cx="38%" cy="28%" r="50%">
+          <stop offset="0%" stopColor="white" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="white" stopOpacity="0" />
+        </radialGradient>
+        <filter id="tpd-glow">
+          <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="hsl(142 72% 55%)" floodOpacity="0.7" />
+        </filter>
+      </defs>
+      {/* Head */}
+      <ellipse cx="25" cy="22" rx="18" ry="19" fill="url(#tpd-face)" filter="url(#tpd-glow)" />
+      <ellipse cx="25" cy="22" rx="18" ry="19" fill="url(#tpd-shine)" />
+      {/* Court lines on face */}
+      <ellipse cx="25" cy="22" rx="12" ry="13" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.2" />
+      <line x1="9"  y1="14" x2="41" y2="30" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+      <line x1="9"  y1="30" x2="41" y2="14" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+      {/* Handle */}
+      <rect x="22.5" y="40" width="5" height="20" rx="2.5" fill="hsl(25 60% 35%)" />
+      <rect x="22.5" y="40" width="5" height="6"  rx="2"   fill="hsl(25 60% 45%)" />
+    </svg>
+  );
+}
+
 /* ── Logo paddle (small) ─────────────────────────────────────────────────── */
 function LogoPaddleIcon() {
   return (
@@ -74,16 +105,31 @@ function LogoPaddleIcon() {
 }
 
 /* ── Transition overlay ──────────────────────────────────────────────────── */
+/*
+ * Hit point: 15% from left, 68% from top.
+ * All three elements (paddle, impact flash, ball + trail) anchor here so
+ * the paddle visually makes contact exactly where the ball launches from.
+ * On mobile the vw/vh units + % positioning scale automatically.
+ */
 function EnterTransition({ onDone }: { onDone: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 1600);
+    const t = setTimeout(onDone, 2200);
     return () => clearTimeout(t);
   }, [onDone]);
+
+  // Hit point as % of the full screen
+  const hitLeft = "15%";
+  const hitTop  = "68%";
+  // Ball radius in px (half of 88px)
+  const r = 44;
 
   return (
     <div className="overlay-enter fixed inset-0 z-50 overflow-hidden pointer-events-none">
 
-      {/* ── SVG comet trail — drawn along the exact same quadratic arc ── */}
+      {/* ── SVG comet trail ─────────────────────────────────────────────────
+          Path starts at (15, 68) in % coords, peaks at ~(55, 16), exits at
+          (103, 66).  Uses preserveAspectRatio="none" so it fills the screen
+          at any aspect ratio — works identically on mobile & desktop.       */}
       <svg
         aria-hidden
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
@@ -91,72 +137,80 @@ function EnterTransition({ onDone }: { onDone: () => void }) {
         preserveAspectRatio="none"
       >
         <defs>
-          {/* Gradient fades in from nothing at start, bright in middle, fades out at end */}
-          <linearGradient id="trail-grad" gradientUnits="userSpaceOnUse" x1="-5" y1="0" x2="105" y2="0">
+          <linearGradient id="tl-grad" gradientUnits="userSpaceOnUse" x1="15" y1="0" x2="103" y2="0">
             <stop offset="0%"   stopColor="hsl(90 90% 65%)" stopOpacity="0"   />
-            <stop offset="20%"  stopColor="hsl(90 90% 65%)" stopOpacity="0.25" />
-            <stop offset="55%"  stopColor="hsl(90 90% 72%)" stopOpacity="0.65" />
-            <stop offset="80%"  stopColor="hsl(90 90% 65%)" stopOpacity="0.3"  />
+            <stop offset="15%"  stopColor="hsl(90 90% 65%)" stopOpacity="0.3" />
+            <stop offset="55%"  stopColor="hsl(90 90% 72%)" stopOpacity="0.7" />
+            <stop offset="85%"  stopColor="hsl(90 90% 65%)" stopOpacity="0.3" />
             <stop offset="100%" stopColor="hsl(90 90% 65%)" stopOpacity="0"   />
           </linearGradient>
-          {/* Softer secondary trail */}
-          <linearGradient id="trail-soft" gradientUnits="userSpaceOnUse" x1="-5" y1="0" x2="105" y2="0">
+          <linearGradient id="tl-soft" gradientUnits="userSpaceOnUse" x1="15" y1="0" x2="103" y2="0">
             <stop offset="0%"   stopColor="hsl(90 90% 55%)" stopOpacity="0"   />
-            <stop offset="40%"  stopColor="hsl(90 90% 55%)" stopOpacity="0.15" />
-            <stop offset="70%"  stopColor="hsl(90 90% 55%)" stopOpacity="0.35" />
+            <stop offset="35%"  stopColor="hsl(90 90% 55%)" stopOpacity="0.18"/>
+            <stop offset="65%"  stopColor="hsl(90 90% 55%)" stopOpacity="0.38"/>
             <stop offset="100%" stopColor="hsl(90 90% 55%)" stopOpacity="0"   />
           </linearGradient>
-          <filter id="trail-blur">
-            <feGaussianBlur stdDeviation="0.6" />
-          </filter>
+          <filter id="tl-blur"><feGaussianBlur stdDeviation="0.7" /></filter>
         </defs>
-        {/* Core bright trail */}
-        <path
-          d="M -5,80 Q 50,-22 105,80"
-          stroke="url(#trail-grad)"
-          strokeWidth="0.8"
-          fill="none"
-          pathLength="1"
-          strokeDasharray="1"
-          strokeDashoffset="1"
-          style={{ animation: "arc-draw 1.7s linear forwards" }}
-        />
-        {/* Wide soft glow trail */}
-        <path
-          d="M -5,80 Q 50,-22 105,80"
-          stroke="url(#trail-soft)"
-          strokeWidth="3.5"
-          fill="none"
-          filter="url(#trail-blur)"
-          pathLength="1"
-          strokeDasharray="1"
-          strokeDashoffset="1"
-          style={{ animation: "arc-draw 1.7s linear forwards" }}
-        />
+        {/* Bright core stroke */}
+        <path d="M 15,68 Q 52,14 103,66"
+          stroke="url(#tl-grad)" strokeWidth="0.9" fill="none"
+          pathLength="1" strokeDasharray="1" strokeDashoffset="1"
+          style={{ animation: "arc-draw 1.65s linear 0.42s both" }} />
+        {/* Soft wide glow stroke */}
+        <path d="M 15,68 Q 52,14 103,66"
+          stroke="url(#tl-soft)" strokeWidth="4" fill="none"
+          filter="url(#tl-blur)"
+          pathLength="1" strokeDasharray="1" strokeDashoffset="1"
+          style={{ animation: "arc-draw 1.65s linear 0.42s both" }} />
       </svg>
 
-      {/* ── Ball — two-div parabola technique ── */}
-      {/*   Outer: moves left→right at perfectly linear speed               */}
-      {/*   Inner: rises then falls with smooth easing (the arc)            */}
-      {/*   The combination = mathematically smooth parabolic trajectory     */}
-      <div
-        className="pb-sweep-x"
-        style={{ position: "absolute", top: "50%", left: "50%" }}
-      >
-        <div className="pb-arc-y">
-          {/* Large ambient glow halo behind ball */}
-          <div
-            style={{
+      {/* ── Paddle ─────────────────────────────────────────────────────────
+          Anchored at hit point; swings in from bottom-left, arrives at
+          contact at ~0.42 s, follows through, then fades out.             */}
+      <div style={{ position: "absolute", top: hitTop, left: hitLeft }}>
+        <div className="pb-paddle" style={{ transformOrigin: "bottom center" }}>
+          {/* Offset so paddle face centre aligns with hit point */}
+          <div style={{ marginTop: `-${r}px`, marginLeft: `-${r * 0.6}px` }}>
+            <PaddleSVG size={88} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Impact flash ────────────────────────────────────────────────── */}
+      <div style={{ position: "absolute", top: hitTop, left: hitLeft }}>
+        <div className="pb-impact"
+          style={{
+            width: "90px", height: "90px",
+            marginTop: "-45px", marginLeft: "-45px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, hsl(80 100% 80% / 0.9) 0%, hsl(90 90% 55% / 0.5) 40%, transparent 70%)",
+            filter: "blur(4px)",
+          }} />
+      </div>
+
+      {/* ── Ball — two-div parabola ─────────────────────────────────────────
+          Both divs anchored at the hit point. No negative start offset needed
+          since the anchor IS the start position.
+          pb-x:  linear horizontal sweep  0 → 88vw
+          pb-y:  ease vertical arc        0 → -48vh → +2vh
+          Both delayed 0.42 s (contact moment).                             */}
+      <div style={{ position: "absolute", top: hitTop, left: hitLeft }}>
+        <div className="pb-x">
+          <div className="pb-y">
+            {/* Ambient glow halo */}
+            <div style={{
               position: "absolute",
-              inset: "-28px",
+              inset: "-26px",
               borderRadius: "50%",
-              background: "radial-gradient(circle, hsl(90 90% 60% / 0.45) 0%, transparent 65%)",
-              filter: "blur(12px)",
-            }}
-          />
-          {/* Ball spins + glows */}
-          <div className="pb-spin pb-glow" style={{ marginTop: "-46px", marginLeft: "-46px" }}>
-            <PickleballSVG size={92} />
+              background: "radial-gradient(circle, hsl(90 90% 60% / 0.4) 0%, transparent 65%)",
+              filter: "blur(14px)",
+            }} />
+            {/* The ball itself: spin + glow */}
+            <div className="pb-spin pb-glow"
+              style={{ marginTop: `-${r}px`, marginLeft: `-${r}px` }}>
+              <PickleballSVG size={r * 2} />
+            </div>
           </div>
         </div>
       </div>

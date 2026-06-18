@@ -101,65 +101,83 @@ html, body {
 }
 
 /* ─── Pickleball enter-app transition ──────────────────────────────────────── */
+/*
+ * All elements share a hit-point anchor at (15%, 68%) of the viewport.
+ * Paddle arrives at that point at t≈0.42s, the ball launches from there.
+ * Two-div parabola: outer=linear X sweep, inner=ease Y arc.
+ */
 
-/* Two-div parabola technique
-   Outer div:  horizontal sweep — perfectly linear so speed is constant
-   Inner div:  vertical arc     — ease-in-out so it rises smoothly and falls
-   The combination produces a mathematically smooth parabolic arc              */
+/* ── Paddle: swings in from bottom-left, contacts ball, follows through ── */
+@keyframes pb-paddle {
+  0%   { transform: translate(-55vw, 38vh) rotate(-80deg); opacity: 0; }
+  6%   { opacity: 1; }
+  38%  { transform: translate(-5vw, 8vh)  rotate(-18deg); opacity: 1;
+         animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+  46%  { transform: translate(2vw, -2vh)  rotate(28deg);  opacity: 1; } /* CONTACT */
+  62%  { transform: translate(10vw,-12vh) rotate(55deg);  opacity: 0.7; }
+  85%  { transform: translate(16vw,-18vh) rotate(68deg);  opacity: 0; }
+  100% { opacity: 0; }
+}
+.pb-paddle { animation: pb-paddle 1s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
-@keyframes pb-sweep-x {
-  from { transform: translateX(-62vw); }
-  to   { transform: translateX(68vw);  }
+/* ── Impact burst at contact moment ── */
+@keyframes pb-impact {
+  0%   { transform: scale(0);   opacity: 0; }
+  30%  { transform: scale(1.4); opacity: 0.9; }
+  100% { transform: scale(2.5); opacity: 0; }
 }
-.pb-sweep-x {
-  animation: pb-sweep-x 1.7s linear forwards;
-}
-
-@keyframes pb-arc-y {
-  0%   { transform: translateY(38vh);  animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0); }
-  48%  { transform: translateY(-26vh); animation-timing-function: cubic-bezier(0.33, 1, 0.66, 1); }
-  100% { transform: translateY(38vh);  }
-}
-.pb-arc-y {
-  animation: pb-arc-y 1.7s linear forwards;
+.pb-impact {
+  animation: pb-impact 0.35s ease-out 0.42s both;
 }
 
-/* Ball spins at uniform rate — feels natural during flight */
+/* ── Ball launch — two-div parabola, delayed until contact ── */
+/* Outer: constant linear X sweep across the full screen */
+@keyframes pb-x {
+  from { transform: translateX(0);    }
+  to   { transform: translateX(88vw); }
+}
+.pb-x { animation: pb-x 1.65s linear 0.42s both; }
+
+/* Inner: smooth vertical arc — rises then falls */
+@keyframes pb-y {
+  0%   { transform: translateY(0);    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0); }
+  45%  { transform: translateY(-48vh);animation-timing-function: cubic-bezier(0.33, 1, 0.66, 1); }
+  100% { transform: translateY(2vh);  }
+}
+.pb-y { animation: pb-y 1.65s linear 0.42s both; }
+
+/* Ball spins at uniform rate — feels natural during the full flight */
 @keyframes pb-spin {
-  from { transform: rotate(0deg);   }
-  to   { transform: rotate(-800deg); }
+  from { transform: rotate(0deg);    }
+  to   { transform: rotate(-760deg); }
 }
-.pb-spin {
-  animation: pb-spin 1.7s linear forwards;
-}
+.pb-spin { animation: pb-spin 1.65s linear 0.42s both; }
 
-/* Glow intensifies at the peak (fastest horizontal moment feels brightest) */
+/* Glow peaks in the middle of the arc */
 @keyframes pb-glow {
-  0%   { filter: drop-shadow(0 0  8px hsl(90 90% 55%/0.5)) drop-shadow(0 0 20px hsl(90 90% 55%/0.2)); }
-  48%  { filter: drop-shadow(0 0 22px hsl(90 90% 65%/0.9)) drop-shadow(0 0 55px hsl(90 90% 55%/0.6)) drop-shadow(0 0 90px hsl(90 90% 45%/0.3)); }
-  100% { filter: drop-shadow(0 0  6px hsl(90 90% 55%/0.3)) drop-shadow(0 0 14px hsl(90 90% 45%/0.1)); }
+  0%   { filter: drop-shadow(0 0  6px hsl(90 90% 55%/0.4)) drop-shadow(0 0 15px hsl(90 90% 45%/0.2)); }
+  45%  { filter: drop-shadow(0 0 20px hsl(90 90% 65%/0.95)) drop-shadow(0 0 50px hsl(90 90% 55%/0.65)) drop-shadow(0 0 80px hsl(90 90% 45%/0.3)); }
+  100% { filter: drop-shadow(0 0  5px hsl(90 90% 55%/0.25)); }
 }
-.pb-glow {
-  animation: pb-glow 1.7s ease-in-out forwards;
-}
+.pb-glow { animation: pb-glow 1.65s ease-in-out 0.42s both; }
 
-/* SVG arc trail draws along the ball's path */
+/* SVG arc trail also starts at contact */
 @keyframes arc-draw {
   from { stroke-dashoffset: 1; }
   to   { stroke-dashoffset: 0; }
 }
 
-/* Overlay: fades in dark, brief green flash, held black */
+/* Overlay dims then flashes green at the end */
 @keyframes overlay-enter {
   0%   { background: rgba(0,0,0,0);    }
-  15%  { background: rgba(0,0,0,0.15); }
-  60%  { background: rgba(0,0,0,0.7);  }
-  80%  { background: rgba(0,0,0,0.92); }
-  88%  { background: rgba(0,0,0,1);    }
-  93%  { background: rgba(85,205,55,0.12); }
+  12%  { background: rgba(0,0,0,0.1);  }
+  55%  { background: rgba(0,0,0,0.65); }
+  78%  { background: rgba(0,0,0,0.92); }
+  86%  { background: rgba(0,0,0,1);    }
+  92%  { background: rgba(80,210,50,0.13); }
   100% { background: rgba(0,0,0,1);    }
 }
-.overlay-enter { animation: overlay-enter 1.75s ease forwards; }
+.overlay-enter { animation: overlay-enter 2.15s ease forwards; }
 
 /* ─── Landing page orb animations ─────────────────────────────────────────── */
 @keyframes orb-drift-1 {
