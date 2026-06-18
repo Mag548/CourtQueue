@@ -489,11 +489,11 @@ export default function HomePage() {
         >
           {(
             [
-              { id: "map",     icon: Map,        label: "Map" },
-              { id: "courts",  icon: MapPin,      label: "Courts",  badge: null },
-              { id: "active",  icon: Timer,       label: "Active",  badge: activeCount },
-              { id: "account", icon: User,        label: "Account" },
-            ] as const
+              { id: "map"     as const, icon: Map,   label: "Map",     badge: 0 },
+              { id: "courts"  as const, icon: MapPin, label: "Courts",  badge: 0 },
+              { id: "active"  as const, icon: Timer,  label: "Active",  badge: activeCount },
+              { id: "account" as const, icon: User,   label: "Account", badge: 0 },
+            ]
           ).map(({ id, icon: Icon, label, badge }) => {
             const isActive =
               id === "account"
