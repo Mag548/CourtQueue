@@ -47,15 +47,113 @@ export async function fetchArcGISFeatures(where = "1=1") {
   return all;
 }
 
-/** @param {string} name */
-function inferSportFlags(name) {
-  const upper = name.toUpperCase();
-  const hasPickleball = upper.includes("PICKLEBALL");
-  const hasTennis = upper.includes("TENNIS") || upper.includes("TENNIS");
-  return {
-    hasPickleball,
-    hasTennis: hasTennis || !hasPickleball,
+/** @param {unknown} value */
+function parsePickleballCount(value) {
+  if (value == null || value === "" || value === "0") return 0;
+  const match = String(value).match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+/**
+ * @param {string} name
+ * @param {Record<string, unknown>} attrs
+ */
+export function classifyFeature(name, attrs) {
+  const upper = (name || "").toUpperCase();
+  const isMultiLined =
+    upper.includes("MULTI-LINED") || upper.includes("MULTI LINE");
+  const isStandalonePickleball =
+    upper.includes("PICKLEBALL") &&
+    !isMultiLined &&
+    !upper.includes(" AND TENNIS");
+
+  const tennisCount = Math.max(
+    0,
+    Number(attrs.PUBLICTENNISCOURTCOUNT ?? attrs.TENNISCOURTCOUNT ?? 0)
+  );
+  const pbFromField = parsePickleballCount(attrs.PICKLEBALLCOURT);
+
+  if (isMultiLined) {
+    return { kind: "pickleball_lined", count: Math.max(1, tennisCount || 1) };
+  }
+  if (isStandalonePickleball) {
+    return {
+      kind: "pickleball_dedicated",
+      count: Math.max(1, pbFromField || 1),
+    };
+  }
+  return { kind: "tennis", count: Math.max(1, tennisCount || 1) };
+}
+
+/** @param {import('./oakville-types').ArcGISFeature[]} features */
+export function detectQueueMode(features) {
+  let hasStandalonePickleball = false;
+  let hasStandaloneTennis = false;
+
+  for (const feature of features) {
+    const upper = (feature.attributes.NAME ?? "").toUpperCase();
+    const isMultiLined =
+      upper.includes("MULTI-LINED") || upper.includes("MULTI LINE");
+    if (
+      upper.includes("PICKLEBALL") &&
+      !isMultiLined &&
+      !upper.includes(" AND TENNIS")
+    ) {
+      hasStandalonePickleball = true;
+    }
+    if (upper.includes("TENNIS") && !isMultiLined) {
+      hasStandaloneTennis = true;
+    }
+  }
+
+  return hasStandalonePickleball && hasStandaloneTennis ? "dual" : "single";
+}
+
+/** @param {import('./oakville-types').ArcGISFeature[]} features */
+function rollupBreakdown(features) {
+  /** @type {{ tennis: number; pickleball_dedicated: number; pickleball_lined: number }} */
+  const breakdown = {
+    tennis: 0,
+    pickleball_dedicated: 0,
+    pickleball_lined: 0,
   };
+
+  for (const feature of features) {
+    const { kind, count } = classifyFeature(
+      feature.attributes.NAME ?? "",
+      feature.attributes
+    );
+    breakdown[kind] += count;
+  }
+
+  return breakdown;
+}
+
+/** @param {{ tennis: number; pickleball_dedicated: number; pickleball_lined: number }} breakdown */
+function totalCourts(breakdown) {
+  return (
+    breakdown.tennis +
+    breakdown.pickleball_dedicated +
+    breakdown.pickleball_lined
+  );
+}
+
+/** @param {{ tennis: number; pickleball_dedicated: number; pickleball_lined: number }} breakdown */
+function inferCourtType(breakdown) {
+  const hasTennis = breakdown.tennis > 0;
+  const hasPickleball =
+    breakdown.pickleball_dedicated > 0 || breakdown.pickleball_lined > 0;
+
+  if (hasTennis && hasPickleball) return "both";
+  if (hasPickleball) return "pickleball";
+  return "tennis";
+}
+
+/** @param {string} courtType */
+function amenitiesForType(courtType) {
+  if (courtType === "both") return ["Tennis", "Pickleball", "Outdoor", "Free"];
+  if (courtType === "pickleball") return ["Pickleball", "Outdoor", "Free"];
+  return ["Tennis", "Outdoor", "Free"];
 }
 
 /** @param {string} name */
@@ -96,27 +194,21 @@ export function normalizeParkKey(name) {
     .trim();
 }
 
-/** @param {import('./oakville-types').ArcGISFeature[]} features */
-function inferCourtType(features) {
-  let hasPickleball = false;
-  let hasTennis = false;
+/**
+ * @param {"single"|"dual"} queueMode
+ * @param {{ tennis: number; pickleball_dedicated: number; pickleball_lined: number }} breakdown
+ */
+function queueCapacities(queueMode, breakdown) {
+  const shared =
+    breakdown.tennis +
+    breakdown.pickleball_lined +
+    breakdown.pickleball_dedicated;
 
-  for (const feature of features) {
-    const flags = inferSportFlags(feature.attributes.NAME ?? "");
-    hasPickleball ||= flags.hasPickleball;
-    hasTennis ||= flags.hasTennis;
-  }
-
-  if (hasPickleball && hasTennis) return "both";
-  if (hasPickleball) return "pickleball";
-  return "tennis";
-}
-
-/** @param {import('./oakville-types').ArcGISFeature[]} features */
-function amenitiesForType(courtType) {
-  if (courtType === "both") return ["Tennis", "Pickleball", "Outdoor", "Free"];
-  if (courtType === "pickleball") return ["Pickleball", "Outdoor", "Free"];
-  return ["Tennis", "Outdoor", "Free"];
+  return {
+    shared_capacity: Math.max(1, shared),
+    tennis_capacity: Math.max(1, breakdown.tennis),
+    pickleball_capacity: Math.max(1, breakdown.pickleball_dedicated),
+  };
 }
 
 /**
@@ -141,14 +233,10 @@ export function consolidateOakvilleCourts(features) {
 
   return [...groups.entries()].map(([groupKey, groupFeatures]) => {
     const name = parkDisplayName(groupFeatures);
-    const courtType = inferCourtType(groupFeatures);
-    const numCourts = groupFeatures.reduce((sum, feature) => {
-      const count =
-        feature.attributes.PUBLICTENNISCOURTCOUNT ??
-        feature.attributes.TENNISCOURTCOUNT ??
-        1;
-      return sum + Math.max(1, Number(count) || 1);
-    }, 0);
+    const court_breakdown = rollupBreakdown(groupFeatures);
+    const queue_mode = detectQueueMode(groupFeatures);
+    const court_type = inferCourtType(court_breakdown);
+    const capacities = queueCapacities(queue_mode, court_breakdown);
 
     const lat =
       groupFeatures.reduce((sum, f) => sum + (f.geometry?.y ?? 0), 0) /
@@ -167,9 +255,12 @@ export function consolidateOakvilleCourts(features) {
       address: address ? `${address}, Oakville, Ontario` : null,
       latitude: lat,
       longitude: lng,
-      court_type: courtType,
-      num_courts: Math.max(1, Math.min(numCourts, 8)),
-      amenities: amenitiesForType(courtType),
+      court_type,
+      num_courts: Math.max(1, totalCourts(court_breakdown)),
+      queue_mode,
+      court_breakdown,
+      ...capacities,
+      amenities: amenitiesForType(court_type),
       municipality: "Oakville",
       source: "oakville-arcgis",
       arcgis_feature_count: groupFeatures.length,
@@ -187,23 +278,34 @@ function mergeByParkName(courts) {
     const key = normalizeParkKey(court.name);
     const existing = merged.get(key);
     if (!existing) {
-      merged.set(key, { ...court });
+      merged.set(key, { ...court, court_breakdown: { ...court.court_breakdown } });
       continue;
     }
 
-    existing.num_courts = Math.min(
-      8,
-      existing.num_courts + court.num_courts
-    );
+    existing.court_breakdown.tennis += court.court_breakdown.tennis;
+    existing.court_breakdown.pickleball_dedicated +=
+      court.court_breakdown.pickleball_dedicated;
+    existing.court_breakdown.pickleball_lined +=
+      court.court_breakdown.pickleball_lined;
+
+    existing.num_courts = totalCourts(existing.court_breakdown);
     existing.arcgis_feature_count += court.arcgis_feature_count;
-    existing.arcgis_names = [
-      ...existing.arcgis_names,
-      ...court.arcgis_names,
-    ];
-    if (existing.court_type !== court.court_type) {
-      existing.court_type = "both";
-      existing.amenities = amenitiesForType("both");
-    }
+    existing.arcgis_names = [...existing.arcgis_names, ...court.arcgis_names];
+
+    const fakeFeatures = existing.arcgis_names.map((name) => ({
+      attributes: { NAME: name },
+    }));
+    existing.queue_mode = detectQueueMode(fakeFeatures);
+    existing.court_type = inferCourtType(existing.court_breakdown);
+    existing.amenities = amenitiesForType(existing.court_type);
+
+    const capacities = queueCapacities(
+      existing.queue_mode,
+      existing.court_breakdown
+    );
+    existing.shared_capacity = capacities.shared_capacity;
+    existing.tennis_capacity = capacities.tennis_capacity;
+    existing.pickleball_capacity = capacities.pickleball_capacity;
   }
 
   return [...merged.values()];

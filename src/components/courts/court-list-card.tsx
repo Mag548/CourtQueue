@@ -7,6 +7,7 @@ import {
   getAvailableCourts,
 } from "@/lib/court-availability";
 import { estimateWaitMinutes, formatWaitMinutes } from "@/lib/court-traffic";
+import { totalWaitingCount } from "@/lib/court-queues";
 import type { CourtWithQueue } from "@/lib/supabase/types";
 import { cn } from "@/lib/utils";
 
@@ -23,9 +24,7 @@ export function CourtListCard({
   onClick,
   className,
 }: CourtListCardProps) {
-  const waiting =
-    court.queue?.queue_entries?.filter((e) => e.status === "waiting").length ??
-    0;
+  const waiting = totalWaitingCount(court.queues);
   const playing = countActiveSessions(court.active_sessions);
   const available = getAvailableCourts(
     court.num_courts,

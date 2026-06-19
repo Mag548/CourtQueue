@@ -201,19 +201,19 @@ export default function QueuePage() {
   const fetchEntry = useCallback(async () => {
     if (!user) return;
 
-    const { data: queue } = await supabase
+    const { data: queues } = await supabase
       .from("queues")
       .select("id")
       .eq("court_id", courtId)
-      .single();
+      .eq("is_active", true);
 
-    if (!queue) return;
+    const queueIds = (queues ?? []).map((q) => q.id);
+    if (queueIds.length === 0) return;
 
-    // Use limit(1) + order so a stale duplicate never causes maybeSingle to return null
     const { data } = await supabase
       .from("queue_entries")
       .select("*")
-      .eq("queue_id", queue.id)
+      .in("queue_id", queueIds)
       .eq("user_id", user.id)
       .in("status", ["waiting", "playing", "notified"])
       .order("joined_at", { ascending: false })
@@ -222,21 +222,28 @@ export default function QueuePage() {
 
     setEntry(data ?? null);
 
-    // Count people ahead
     if (data?.status === "waiting") {
       const { count } = await supabase
         .from("queue_entries")
         .select("*", { count: "exact", head: true })
-        .eq("queue_id", queue.id)
+        .eq("queue_id", data.queue_id)
         .eq("status", "waiting")
         .lt("position", data.position);
       setQueueAhead(count ?? 0);
     }
   }, [user, supabase, courtId]);
 
-  // ── Load active session ──────────────────────────────────────────────────────
   const fetchSession = useCallback(async () => {
-    await supabase.rpc("sync_court_timers", { p_court_id: courtId });
+    const { data: queues } = await supabase
+      .from("queues")
+      .select("id")
+      .eq("court_id", courtId)
+      .eq("is_active", true);
+
+    for (const queue of queues ?? []) {
+      await supabase.rpc("sync_court_timers", { p_queue_id: queue.id });
+    }
+
     const { data } = await supabase
       .from("court_sessions")
       .select("*")

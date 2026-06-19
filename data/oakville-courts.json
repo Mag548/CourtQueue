@@ -7,6 +7,15 @@
     "longitude": -79.67111131954253,
     "court_type": "tennis",
     "num_courts": 5,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 5,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 5,
+    "tennis_capacity": 5,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -27,6 +36,15 @@
     "longitude": -79.74026931228423,
     "court_type": "both",
     "num_courts": 6,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 3,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 3
+    },
+    "shared_capacity": 6,
+    "tennis_capacity": 3,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -49,6 +67,15 @@
     "longitude": -79.70950303964449,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 2
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -69,10 +96,18 @@
     "address": "1406 Oxford Ave, Oakville, Ontario",
     "latitude": 43.457609544034575,
     "longitude": -79.71299475874433,
-    "court_type": "both",
+    "court_type": "pickleball",
     "num_courts": 1,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 0,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 1,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
-      "Tennis",
       "Pickleball",
       "Outdoor",
       "Free"
@@ -92,6 +127,15 @@
     "longitude": -79.73203425758346,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 2
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -114,6 +158,15 @@
     "longitude": -79.69148565086815,
     "court_type": "tennis",
     "num_courts": 1,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 1,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -134,6 +187,15 @@
     "longitude": -79.73648316038536,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 2
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -156,6 +218,15 @@
     "longitude": -79.64137365532125,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 2
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -178,6 +249,15 @@
     "longitude": -79.68967966119973,
     "court_type": "both",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -200,6 +280,15 @@
     "longitude": -79.64252108286232,
     "court_type": "both",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -222,6 +311,15 @@
     "longitude": -79.7462181817889,
     "court_type": "both",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -244,6 +342,15 @@
     "longitude": -79.6772519859649,
     "court_type": "tennis",
     "num_courts": 1,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 1,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -264,6 +371,15 @@
     "longitude": -79.7020288232166,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 2,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 2,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -286,6 +402,15 @@
     "longitude": -79.74109925720421,
     "court_type": "both",
     "num_courts": 6,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 3,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 3
+    },
+    "shared_capacity": 6,
+    "tennis_capacity": 3,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -308,6 +433,15 @@
     "longitude": -79.69379705413685,
     "court_type": "both",
     "num_courts": 3,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 1,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 3,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -329,10 +463,18 @@
     "address": "141 East St, Oakville, Ontario",
     "latitude": 43.40049086043413,
     "longitude": -79.7078318900888,
-    "court_type": "both",
+    "court_type": "pickleball",
     "num_courts": 1,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 0,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 1,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
-      "Tennis",
       "Pickleball",
       "Outdoor",
       "Free"
@@ -352,6 +494,15 @@
     "longitude": -79.7284660390217,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 2
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -374,6 +525,15 @@
     "longitude": -79.72045110851968,
     "court_type": "tennis",
     "num_courts": 8,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 8,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 8,
+    "tennis_capacity": 8,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -394,6 +554,15 @@
     "longitude": -79.69761112434381,
     "court_type": "both",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -416,6 +585,15 @@
     "longitude": -79.70636395293965,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 2,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 2,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -438,6 +616,15 @@
     "longitude": -79.65494995076853,
     "court_type": "both",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -460,6 +647,15 @@
     "longitude": -79.69592590916747,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 2
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -482,6 +678,15 @@
     "longitude": -79.69033120073645,
     "court_type": "tennis",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -502,6 +707,15 @@
     "longitude": -79.65444880483882,
     "court_type": "tennis",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -520,10 +734,18 @@
     "address": "3307 Lakeshore Rd W, Oakville, Ontario",
     "latitude": 43.37993964929888,
     "longitude": -79.72250005750114,
-    "court_type": "both",
+    "court_type": "pickleball",
     "num_courts": 3,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 0,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 3
+    },
+    "shared_capacity": 3,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
-      "Tennis",
       "Pickleball",
       "Outdoor",
       "Free"
@@ -541,10 +763,18 @@
     "address": "1110 Old Abbey Lane, Oakville, Ontario",
     "latitude": 43.444619570071964,
     "longitude": -79.71047343014918,
-    "court_type": "both",
+    "court_type": "pickleball",
     "num_courts": 1,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 0,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 1,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
-      "Tennis",
       "Pickleball",
       "Outdoor",
       "Free"
@@ -564,6 +794,15 @@
     "longitude": -79.72570973788554,
     "court_type": "both",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 1,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 1
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -585,7 +824,16 @@
     "latitude": 43.486340579688246,
     "longitude": -79.73161918488702,
     "court_type": "both",
-    "num_courts": 4,
+    "num_courts": 6,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 4,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 6,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 4,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -608,6 +856,15 @@
     "longitude": -79.7207097065315,
     "court_type": "both",
     "num_courts": 6,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 3,
+      "pickleball_dedicated": 3,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 6,
+    "tennis_capacity": 3,
+    "pickleball_capacity": 3,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -630,6 +887,15 @@
     "longitude": -79.74713318818144,
     "court_type": "both",
     "num_courts": 4,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 2,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 4,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 2,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -652,6 +918,15 @@
     "longitude": -79.75391203232027,
     "court_type": "pickleball",
     "num_courts": 1,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 0,
+      "pickleball_dedicated": 1,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 1,
+    "tennis_capacity": 1,
+    "pickleball_capacity": 1,
     "amenities": [
       "Pickleball",
       "Outdoor",
@@ -670,11 +945,19 @@
     "address": "133 Rebecca Street, Oakville, Ontario",
     "latitude": 43.440172060020515,
     "longitude": -79.67884557536038,
-    "court_type": "both",
+    "court_type": "tennis",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
-      "Pickleball",
       "Outdoor",
       "Free"
     ],
@@ -694,6 +977,15 @@
     "longitude": -79.66505133962136,
     "court_type": "tennis",
     "num_courts": 3,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 3,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 3,
+    "tennis_capacity": 3,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -714,6 +1006,15 @@
     "longitude": -79.64406499299201,
     "court_type": "tennis",
     "num_courts": 2,
+    "queue_mode": "single",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 0,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 2,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Outdoor",
@@ -734,6 +1035,15 @@
     "longitude": -79.74660430817376,
     "court_type": "both",
     "num_courts": 3,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 1,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 3,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 1,
     "amenities": [
       "Tennis",
       "Pickleball",
@@ -755,7 +1065,16 @@
     "latitude": 43.49111593880094,
     "longitude": -79.74380902622883,
     "court_type": "both",
-    "num_courts": 4,
+    "num_courts": 6,
+    "queue_mode": "dual",
+    "court_breakdown": {
+      "tennis": 2,
+      "pickleball_dedicated": 4,
+      "pickleball_lined": 0
+    },
+    "shared_capacity": 6,
+    "tennis_capacity": 2,
+    "pickleball_capacity": 4,
     "amenities": [
       "Tennis",
       "Pickleball",

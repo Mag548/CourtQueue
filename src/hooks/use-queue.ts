@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { QueueEntry } from "@/lib/supabase/types";
 import { courtAssignmentMessage } from "@/lib/court-availability";
+import { resolveQueueForSport } from "@/lib/court-queues";
 import { toast } from "sonner";
 
 const ACTIVE_QUEUE_STATUSES = ["waiting", "notified", "playing"] as const;
@@ -26,6 +27,21 @@ async function getUserActiveQueueEntries(
   return (data ?? []) as ActiveQueueEntry[];
 }
 
+async function syncCourtQueueTimers(
+  supabase: ReturnType<typeof createClient>,
+  courtId: string
+) {
+  const { data: queues } = await supabase
+    .from("queues")
+    .select("id")
+    .eq("court_id", courtId)
+    .eq("is_active", true);
+
+  for (const queue of queues ?? []) {
+    await supabase.rpc("sync_court_timers", { p_queue_id: queue.id });
+  }
+}
+
 export function useQueue() {
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
@@ -39,14 +55,21 @@ export function useQueue() {
     ) => {
       setLoading(true);
       try {
-        // Get the queue for this court
-        const { data: queue, error: queueError } = await supabase
-          .from("queues")
-          .select("id")
-          .eq("court_id", courtId)
+        const { data: court, error: courtError } = await supabase
+          .from("courts")
+          .select("queue_mode, queues(id, court_id, sport_scope, is_active, capacity)")
+          .eq("id", courtId)
           .single();
 
-        if (queueError || !queue) throw new Error("Queue not found");
+        if (courtError || !court) throw new Error("Court not found");
+
+        const queue = resolveQueueForSport(
+          (court.queues ?? []) as Parameters<typeof resolveQueueForSport>[0],
+          court.queue_mode ?? "single",
+          sport
+        );
+
+        if (!queue) throw new Error("Queue not found");
 
         const activeEntries = await getUserActiveQueueEntries(supabase, userId);
         const sameCourtEntry = activeEntries.find(
@@ -69,14 +92,11 @@ export function useQueue() {
           return null;
         }
 
-        // Get next position
         const { count } = await supabase
           .from("queue_entries")
           .select("*", { count: "exact", head: true })
           .eq("queue_id", queue.id)
           .eq("status", "waiting");
-
-        const position = (count ?? 0) + 1;
 
         const { data: entry, error } = await supabase
           .from("queue_entries")
@@ -123,7 +143,7 @@ export function useQueue() {
           const { count: activeCount } = await supabase
             .from("court_sessions")
             .select("*", { count: "exact", head: true })
-            .eq("court_id", courtId)
+            .eq("queue_id", queue.id)
             .eq("status", "active");
           toast.success(`You're on Court ${payload.court_number}!`, {
             description: courtAssignmentMessage(
@@ -161,7 +181,7 @@ export function useQueue() {
         if (entry?.status === "playing") {
           const { data: sess } = await supabase
             .from("court_sessions")
-            .select("id")
+            .select("id, queue_id")
             .eq("queue_entry_id", entryId)
             .eq("status", "active")
             .maybeSingle();
@@ -179,9 +199,13 @@ export function useQueue() {
             .eq("id", entryId);
 
           const courtId = (entry?.queue as { court_id: string } | null)?.court_id;
+          if (sess?.queue_id) {
+            await supabase.rpc("promote_waiting_player", {
+              p_queue_id: sess.queue_id,
+            });
+          }
           if (courtId) {
-            await supabase.rpc("promote_waiting_player", { p_court_id: courtId });
-            await supabase.rpc("sync_court_timers", { p_court_id: courtId });
+            await syncCourtQueueTimers(supabase, courtId);
           }
 
           toast.success("You've left the court.");
@@ -199,7 +223,7 @@ export function useQueue() {
           await supabase.rpc("reorder_queue", { p_queue_id: entry.queue_id });
           const courtId = (entry?.queue as { court_id: string } | null)?.court_id;
           if (courtId) {
-            await supabase.rpc("sync_court_timers", { p_court_id: courtId });
+            await syncCourtQueueTimers(supabase, courtId);
           }
         }
 
@@ -217,18 +241,19 @@ export function useQueue() {
 
   const getUserQueueEntry = useCallback(
     async (courtId: string, userId: string): Promise<QueueEntry | null> => {
-      const { data: queue } = await supabase
+      const { data: queues } = await supabase
         .from("queues")
         .select("id")
         .eq("court_id", courtId)
-        .single();
+        .eq("is_active", true);
 
-      if (!queue) return null;
+      const queueIds = (queues ?? []).map((q) => q.id);
+      if (queueIds.length === 0) return null;
 
       const { data } = await supabase
         .from("queue_entries")
         .select("*")
-        .eq("queue_id", queue.id)
+        .in("queue_id", queueIds)
         .eq("user_id", userId)
         .in("status", ["waiting", "notified", "playing"])
         .order("joined_at", { ascending: false })
@@ -244,10 +269,9 @@ export function useQueue() {
     async (sessionId: string) => {
       setLoading(true);
       try {
-        // Grab court_id and queue_entry_id before ending
         const { data: sess } = await supabase
           .from("court_sessions")
-          .select("court_id, queue_entry_id")
+          .select("court_id, queue_id, queue_entry_id")
           .eq("id", sessionId)
           .single();
 
@@ -258,7 +282,6 @@ export function useQueue() {
 
         if (error) throw error;
 
-        // Mark the queue entry as expired
         if (sess?.queue_entry_id) {
           await supabase
             .from("queue_entries")
@@ -266,11 +289,13 @@ export function useQueue() {
             .eq("id", sess.queue_entry_id);
         }
 
-        if (sess?.court_id) {
+        if (sess?.queue_id) {
           await supabase.rpc("promote_waiting_player", {
-            p_court_id: sess.court_id,
+            p_queue_id: sess.queue_id,
           });
-          await supabase.rpc("sync_court_timers", { p_court_id: sess.court_id });
+        }
+        if (sess?.court_id) {
+          await syncCourtQueueTimers(supabase, sess.court_id);
         }
 
         toast.success("Session ended. Thanks for playing!");
@@ -328,7 +353,6 @@ export function useQueue() {
           throw new Error("This booking is no longer active");
         }
 
-        // Bump party size by 1
         const { error: updateErr } = await supabase
           .from("queue_entries")
           .update({ party_size: entry.party_size + 1 })

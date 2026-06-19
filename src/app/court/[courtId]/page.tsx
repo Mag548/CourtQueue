@@ -108,11 +108,18 @@ export default function CourtScanPage() {
     setCourt(courtData);
     if (courtData.court_type === "pickleball") setSport("pickleball");
 
-    // Expire old sessions and clear timers when nobody is waiting
     await supabase.rpc("expire_old_sessions");
-    await supabase.rpc("sync_court_timers", { p_court_id: courtId });
 
-    // Active session?
+    const { data: queues } = await supabase
+      .from("queues")
+      .select("id")
+      .eq("court_id", courtId)
+      .eq("is_active", true);
+
+    for (const queue of queues ?? []) {
+      await supabase.rpc("sync_court_timers", { p_queue_id: queue.id });
+    }
+
     const { data: sessions } = await supabase
       .from("court_sessions")
       .select("*")
@@ -120,26 +127,20 @@ export default function CourtScanPage() {
       .eq("status", "active");
     setActiveSessions((sessions ?? []).filter(isSessionActive));
 
-    // Queue length
-    const { data: queue } = await supabase
-      .from("queues")
-      .select("id")
-      .eq("court_id", courtId)
-      .single();
-    if (queue) {
+    const queueIds = (queues ?? []).map((q) => q.id);
+    if (queueIds.length > 0) {
       const { count } = await supabase
         .from("queue_entries")
         .select("*", { count: "exact", head: true })
-        .eq("queue_id", queue.id)
+        .in("queue_id", queueIds)
         .eq("status", "waiting");
       setQueueLen(count ?? 0);
 
-      // Current user's entry
       if (user) {
         const { data: entry } = await supabase
           .from("queue_entries")
           .select("*")
-          .eq("queue_id", queue.id)
+          .in("queue_id", queueIds)
           .eq("user_id", user.id)
           .in("status", ["waiting", "notified", "playing"])
           .order("joined_at", { ascending: false })

@@ -23,6 +23,7 @@ export type Database = {
           extended: boolean | null
           id: string
           queue_entry_id: string | null
+          queue_id: string | null
           started_at: string | null
           status: string
           user_id: string | null
@@ -35,6 +36,7 @@ export type Database = {
           extended?: boolean | null
           id?: string
           queue_entry_id?: string | null
+          queue_id?: string | null
           started_at?: string | null
           status?: string
           user_id?: string | null
@@ -47,6 +49,7 @@ export type Database = {
           extended?: boolean | null
           id?: string
           queue_entry_id?: string | null
+          queue_id?: string | null
           started_at?: string | null
           status?: string
           user_id?: string | null
@@ -64,6 +67,13 @@ export type Database = {
             columns: ["queue_entry_id"]
             isOneToOne: false
             referencedRelation: "queue_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "court_sessions_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "queues"
             referencedColumns: ["id"]
           },
           {
@@ -106,6 +116,7 @@ export type Database = {
         Row: {
           address: string | null
           amenities: string[] | null
+          court_breakdown: Json
           court_type: string
           created_at: string | null
           id: string
@@ -115,10 +126,12 @@ export type Database = {
           longitude: number
           name: string
           num_courts: number
+          queue_mode: string
         }
         Insert: {
           address?: string | null
           amenities?: string[] | null
+          court_breakdown?: Json
           court_type: string
           created_at?: string | null
           id?: string
@@ -128,10 +141,12 @@ export type Database = {
           longitude: number
           name: string
           num_courts?: number
+          queue_mode?: string
         }
         Update: {
           address?: string | null
           amenities?: string[] | null
+          court_breakdown?: Json
           court_type?: string
           created_at?: string | null
           id?: string
@@ -141,6 +156,7 @@ export type Database = {
           longitude?: number
           name?: string
           num_courts?: number
+          queue_mode?: string
         }
         Relationships: []
       }
@@ -209,28 +225,34 @@ export type Database = {
       }
       queues: {
         Row: {
+          capacity: number | null
           court_id: string
           created_at: string | null
           id: string
           is_active: boolean | null
+          sport_scope: string
         }
         Insert: {
+          capacity?: number | null
           court_id: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          sport_scope?: string
         }
         Update: {
+          capacity?: number | null
           court_id?: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          sport_scope?: string
         }
         Relationships: [
           {
             foreignKeyName: "queues_court_id_fkey"
             columns: ["court_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "courts"
             referencedColumns: ["id"]
           },
@@ -282,12 +304,12 @@ export type Database = {
         Returns: Json
       }
       promote_waiting_player: {
-        Args: { p_court_id: string }
-        Returns: undefined
+        Args: { p_queue_id: string }
+        Returns: Json
       }
       reorder_queue: { Args: { p_queue_id: string }; Returns: undefined }
       sync_court_timers: {
-        Args: { p_court_id: string }
+        Args: { p_queue_id: string }
         Returns: undefined
       }
       admin_clear_court: {
@@ -312,7 +334,15 @@ export type Queue = Database["public"]["Tables"]["queues"]["Row"];
 export type QueueEntry = Database["public"]["Tables"]["queue_entries"]["Row"];
 export type CourtSession = Database["public"]["Tables"]["court_sessions"]["Row"];
 
+export type CourtBreakdown = {
+  tennis: number;
+  pickleball_dedicated: number;
+  pickleball_lined: number;
+};
+
 export type CourtWithQueue = Court & {
+  court_breakdown: CourtBreakdown;
+  queues: (Queue & { queue_entries: QueueEntry[] })[];
   queue: (Queue & { queue_entries: QueueEntry[] }) | null;
   active_sessions: CourtSession[];
 };

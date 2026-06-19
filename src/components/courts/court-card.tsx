@@ -46,6 +46,13 @@ import {
   getAvailableCourts,
   courtAssignmentMessage,
 } from "@/lib/court-availability";
+import {
+  breakdownLabel,
+  queueCapacity,
+  resolveQueueForSport,
+  sessionsForQueue,
+  totalWaitingCount,
+} from "@/lib/court-queues";
 
 interface CourtCardProps {
   court: CourtWithQueue;
@@ -233,7 +240,6 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
   const [sport, setSport] = useState<"tennis" | "pickleball">(
     court.court_type === "pickleball" ? "pickleball" : "tennis"
   );
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [queueWithUsers, setQueueWithUsers] = useState<
     (QueueEntry & { user?: { full_name: string | null; avatar_url: string | null } })[]
   >([]);
@@ -242,19 +248,30 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
   const { recentOccupied, hourlyActivity, totalReports, refetch: refetchTraffic } =
     useCourtTraffic(court.id);
 
-  const waitingEntries = court.queue?.queue_entries?.filter(
-    (e) => e.status === "waiting"
-  ) ?? [];
-
-  const appOccupiedCount = countActiveSessions(court.active_sessions);
-  const availableCourts = getAvailableCourts(
-    court.num_courts,
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const activeQueue = resolveQueueForSport(
+    court.queues,
+    court.queue_mode,
+    sport
+  );
+  const queueCapacityCount = queueCapacity(activeQueue, court.num_courts);
+  const queueSessions = sessionsForQueue(
     court.active_sessions,
+    activeQueue?.id
+  );
+
+  const waitingEntries =
+    activeQueue?.queue_entries?.filter((e) => e.status === "waiting") ?? [];
+
+  const appOccupiedCount = countActiveSessions(queueSessions);
+  const availableCourts = getAvailableCourts(
+    queueCapacityCount,
+    queueSessions,
     recentOccupied
   );
-  const userSession = court.active_sessions.find((s) => s.user_id === user?.id);
+  const userSession = queueSessions.find((s) => s.user_id === user?.id);
   const estimatedWait = estimateWaitMinutes({
-    numCourts: court.num_courts,
+    numCourts: queueCapacityCount,
     queueLength: waitingEntries.length,
     appOccupiedCount,
     reportedOccupied: recentOccupied,
@@ -267,22 +284,22 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
   }, [user, court.id, getUserQueueEntry]);
 
   const fetchQueueWithUsers = useCallback(async () => {
-    if (!court.queue) return;
+    if (!activeQueue) return;
 
     const { data } = await supabase
       .from("queue_entries")
       .select("*, user:users(full_name, avatar_url)")
-      .eq("queue_id", court.queue.id)
+      .eq("queue_id", activeQueue.id)
       .eq("status", "waiting")
       .order("position");
 
     if (data) setQueueWithUsers(data as typeof queueWithUsers);
-  }, [supabase, court.queue]);
+  }, [supabase, activeQueue]);
 
   useEffect(() => {
     fetchUserEntry();
     fetchQueueWithUsers();
-  }, [fetchUserEntry, fetchQueueWithUsers]);
+  }, [fetchUserEntry, fetchQueueWithUsers, sport]);
 
   const handleJoin = async () => {
     if (!user) return;
@@ -415,7 +432,7 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
             <DialogTitle className="text-center font-bold mb-2">Report Court Traffic</DialogTitle>
             <TrafficReportPanel
               courtId={court.id}
-              numCourts={court.num_courts}
+              numCourts={queueCapacityCount}
               onClose={() => setShowTrafficReport(false)}
               onSubmitted={refetchTraffic}
             />
@@ -431,7 +448,9 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
             </div>
             <p className="text-xl font-bold">
               {availableCourts}
-              <span className="text-sm text-muted-foreground font-normal">/{court.num_courts}</span>
+              <span className="text-sm text-muted-foreground font-normal">
+                /{queueCapacityCount}
+              </span>
             </p>
           </div>
           <div className="rounded-2xl bg-white/[0.04] border border-white/[0.05] p-3 text-center">
@@ -456,7 +475,7 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
           hourlyActivity={hourlyActivity}
           totalReports={totalReports}
           recentOccupied={recentOccupied}
-          numCourts={court.num_courts}
+          numCourts={queueCapacityCount}
         />
 
         {/* Active Session Timer */}
@@ -483,7 +502,7 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
                   entry={entry}
                   index={i}
                   isCurrentUser={entry.user_id === user?.id}
-                  numCourts={court.num_courts}
+                  numCourts={queueCapacityCount}
                   appOccupiedCount={appOccupiedCount}
                   reportedOccupied={recentOccupied}
                 />
@@ -576,8 +595,7 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Sport Selector */}
-              {court.court_type === "both" && (
+              {(court.queue_mode === "dual" || court.court_type === "both") && (
                 <div className="flex gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
                   <button
                     onClick={() => setSport("tennis")}
@@ -588,6 +606,8 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
                     }`}
                   >
                     🎾 Tennis
+                    {court.queue_mode === "dual" &&
+                      ` (${court.court_breakdown.tennis})`}
                   </button>
                   <button
                     onClick={() => setSport("pickleball")}
@@ -598,8 +618,16 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
                     }`}
                   >
                     🏓 Pickleball
+                    {court.queue_mode === "dual" &&
+                      ` (${court.court_breakdown.pickleball_dedicated})`}
                   </button>
                 </div>
+              )}
+
+              {court.queue_mode === "single" && (
+                <p className="text-xs text-muted-foreground text-center">
+                  {breakdownLabel(court.court_breakdown)}
+                </p>
               )}
 
               {/* Party Size */}

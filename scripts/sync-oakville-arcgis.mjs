@@ -123,6 +123,11 @@ async function upsertCourt(court, existingId) {
       p_court_type: court.court_type,
       p_num_courts: court.num_courts,
       p_amenities: court.amenities,
+      p_queue_mode: court.queue_mode,
+      p_court_breakdown: court.court_breakdown,
+      p_shared_capacity: court.shared_capacity,
+      p_tennis_capacity: court.tennis_capacity,
+      p_pickleball_capacity: court.pickleball_capacity,
     }),
   });
 
@@ -169,7 +174,10 @@ async function main() {
   for (const court of oakvilleCourts) {
     console.log(`[${court.name}]`);
     console.log(
-      `  ${court.num_courts} courts · ${court.court_type} · ${court.latitude.toFixed(5)}, ${court.longitude.toFixed(5)}`
+      `  ${court.num_courts} courts · ${court.queue_mode} · ${court.court_type} · ${JSON.stringify(court.court_breakdown)}`
+    );
+    console.log(
+      `  ${court.latitude.toFixed(5)}, ${court.longitude.toFixed(5)}`
     );
 
     const match = findExistingMatch(court, existing);

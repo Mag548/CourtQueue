@@ -7,6 +7,7 @@ import {
   getAvailableCourts,
   formatAvailableCourts,
 } from "@/lib/court-availability";
+import { totalWaitingCount } from "@/lib/court-queues";
 
 interface CourtMapProps {
   courts: CourtWithQueue[];
@@ -41,9 +42,7 @@ function getAvailabilityLabel(court: CourtWithQueue): {
   text: string;
   busy: boolean;
 } {
-  const waiting =
-    court.queue?.queue_entries?.filter((e) => e.status === "waiting")
-      .length ?? 0;
+  const waiting = totalWaitingCount(court.queues);
   const available = getAvailableCourts(
     court.num_courts,
     court.active_sessions ?? [],

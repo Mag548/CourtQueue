@@ -3,6 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isSessionActive } from "@/lib/court-availability";
+import {
+  getActiveQueues,
+  parseCourtBreakdown,
+  type QueueWithEntries,
+} from "@/lib/court-queues";
 import type { CourtWithQueue, Court, CourtSession } from "@/lib/supabase/types";
 
 async function fetchActiveSessions(
@@ -22,18 +27,27 @@ function withQueueData(
   court: Record<string, unknown>,
   sessions: CourtSession[]
 ): CourtWithQueue {
-  const queue = Array.isArray(court.queue) ? court.queue[0] : court.queue;
+  const rawQueues = Array.isArray(court.queues)
+    ? court.queues
+    : court.queue
+      ? [court.queue].flat()
+      : [];
+
+  const queues = getActiveQueues(
+    rawQueues.map((queue) => ({
+      ...(queue as QueueWithEntries),
+      queue_entries: (
+        (queue as QueueWithEntries).queue_entries || []
+      ).filter((e: { status: string }) => e.status === "waiting"),
+    }))
+  ) as CourtWithQueue["queues"];
 
   return {
     ...(court as CourtWithQueue),
-    queue: queue
-      ? {
-          ...queue,
-          queue_entries: (queue.queue_entries || []).filter(
-            (e: { status: string }) => e.status === "waiting"
-          ),
-        }
-      : null,
+    queue_mode: (court.queue_mode as string) ?? "single",
+    court_breakdown: parseCourtBreakdown(court.court_breakdown),
+    queues,
+    queue: queues[0] ?? null,
     active_sessions: sessions,
   };
 }
@@ -51,7 +65,7 @@ export function useCourts() {
       .select(
         `
         *,
-        queue:queues(
+        queues(
           *,
           queue_entries(*)
         )
@@ -112,7 +126,7 @@ export function useCourt(courtId: string) {
       .select(
         `
         *,
-        queue:queues(
+        queues(
           *,
           queue_entries(*)
         )
