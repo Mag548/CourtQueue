@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (options?.mobileReturn) {
       saveMobileOAuthState(options.mobileReturn);
     } else if (typeof window !== "undefined" && window.innerWidth < 768) {
-      saveMobileOAuthState({ tab: "courts", sheet: "peek" });
+      saveMobileOAuthState({ tab: "courts", sheet: "peek", forceMobile: true });
     }
 
     const { error } = await supabase.auth.signInWithOAuth({

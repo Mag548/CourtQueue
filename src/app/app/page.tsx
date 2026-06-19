@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { consumeMobileOAuthState } from "@/lib/mobile-oauth";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -75,6 +76,9 @@ export default function HomePage() {
   const [mobileTab, setMobileTab] = useState<"map" | "courts" | "active" | "account">("courts");
   const [mobileSheet, setMobileSheet] = useState<"hidden" | "peek" | "open">("peek");
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [forceMobileLayout, setForceMobileLayout] = useState(false);
+  const { isMobile, ready: layoutReady } = useIsMobile();
+  const showMobile = forceMobileLayout || !layoutReady || isMobile;
 
   // Drag gesture state for bottom sheet
   const dragStartY = useRef<number | null>(null);
@@ -147,7 +151,7 @@ export default function HomePage() {
   // ── Court select ──────────────────────────────────────────────────────────
   const handleCourtSelect = (court: CourtWithQueue) => {
     setSelectedCourt(court);
-    if (window.innerWidth < 768) {
+    if (showMobile) {
       setMobileTab("courts");
       setMobileSheet("open");
     } else {
@@ -179,15 +183,16 @@ export default function HomePage() {
 
   // Auto-open sheet when court is selected on mobile
   useEffect(() => {
-    if (selectedCourt && typeof window !== "undefined" && window.innerWidth < 768) {
+    if (selectedCourt && showMobile) {
       setMobileSheet("open");
     }
-  }, [selectedCourt]);
+  }, [selectedCourt, showMobile]);
 
   // Restore mobile layout after Google OAuth (session survives full page reload)
   useEffect(() => {
     const saved = consumeMobileOAuthState();
     if (saved) {
+      setForceMobileLayout(true);
       setMobileTab(saved.tab);
       setMobileSheet(saved.sheet === "hidden" ? "peek" : saved.sheet);
       setAuthModalOpen(false);
@@ -199,13 +204,13 @@ export default function HomePage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" || window.innerWidth >= 768) return;
+      if (event !== "SIGNED_IN" || !showMobile) return;
       setAuthModalOpen(false);
       setMobileTab((t) => (t === "map" ? "map" : "courts"));
       setMobileSheet((s) => (s === "hidden" ? "peek" : s));
     });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, showMobile]);
 
   // ── Court list (shared by desktop sidebar + mobile sheet) ─────────────────
   const CourtList = () => (
@@ -333,10 +338,9 @@ export default function HomePage() {
   return (
     <div className="h-screen bg-background overflow-hidden">
 
-      {/* ═══════════════════════════════════════════════════════
-          DESKTOP LAYOUT  (md and up — unchanged)
-      ═══════════════════════════════════════════════════════ */}
-      <div className="hidden md:flex flex-col h-full">
+      {/* Only mount ONE layout — prevents desktop sidebar bleeding onto mobile after OAuth */}
+      {!showMobile ? (
+      <div className="flex flex-col h-full">
         <Navbar />
         <div className="flex flex-1 overflow-hidden gap-3 px-3 pb-3">
           {/* Sidebar */}
@@ -407,11 +411,8 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-
-      {/* ═══════════════════════════════════════════════════════
-          MOBILE LAYOUT  (below md)
-      ═══════════════════════════════════════════════════════ */}
-      <div className="md:hidden fixed inset-0 overflow-hidden" style={{ zIndex: 1 }}>
+      ) : (
+      <div className="fixed inset-0 overflow-hidden">
 
         {/* ── Full-screen map ── */}
         <div className="absolute inset-0 z-0" style={{ touchAction: "pan-x pan-y" }}>{mapEl}</div>
@@ -576,6 +577,7 @@ export default function HomePage() {
           })}
         </div>
       </div>
+      )}
 
       {/* Auth modal at page root — survives Google OAuth full-page redirect */}
       <AuthModal
@@ -586,7 +588,7 @@ export default function HomePage() {
         }}
         onOpenChange={(open) => {
           setAuthModalOpen(open);
-          if (!open && window.innerWidth < 768) {
+          if (!open && showMobile) {
             requestAnimationFrame(() => {
               setMobileTab((t) => (t === "map" ? "map" : "courts"));
               setMobileSheet((s) => (s === "hidden" ? "peek" : s));

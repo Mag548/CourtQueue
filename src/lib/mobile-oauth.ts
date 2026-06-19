@@ -4,11 +4,15 @@ export const MOBILE_OAUTH_KEY = "cq-mobile-oauth-return";
 export type MobileOAuthState = {
   tab: "map" | "courts" | "active";
   sheet: "hidden" | "peek" | "open";
+  forceMobile?: boolean;
 };
 
 export function saveMobileOAuthState(state: MobileOAuthState) {
   if (typeof window === "undefined" || window.innerWidth >= 768) return;
-  sessionStorage.setItem(MOBILE_OAUTH_KEY, JSON.stringify(state));
+  sessionStorage.setItem(
+    MOBILE_OAUTH_KEY,
+    JSON.stringify({ ...state, forceMobile: true })
+  );
 }
 
 export function consumeMobileOAuthState(): MobileOAuthState | null {
