@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
-import { Loader2, Camera, AlertCircle } from "lucide-react";
+import { Camera, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { parseCourtIdFromScan } from "@/lib/court-qr";
 
@@ -21,13 +21,11 @@ export function QrScanner({ onScan, className }: QrScannerProps) {
   const elementId = `${SCANNER_ID_PREFIX}-${scannerId}`;
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const handledRef = useRef(false);
-  const [starting, setStarting] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     handledRef.current = false;
     setError(null);
-    setStarting(true);
 
     let cancelled = false;
 
@@ -65,8 +63,7 @@ export function QrScanner({ onScan, className }: QrScannerProps) {
           const msg =
             err instanceof Error ? err.message : "Camera access denied";
           setError(msg);
-        })
-        .finally(() => setStarting(false));
+        });
     };
 
     const frame = requestAnimationFrame(start);
@@ -87,13 +84,6 @@ export function QrScanner({ onScan, className }: QrScannerProps) {
     <div className={className}>
       <div className="relative bg-black min-h-[min(70vh,520px)] flex items-center justify-center rounded-3xl overflow-hidden border border-white/[0.08]">
         <div id={elementId} className="w-full" />
-
-        {starting && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-xs text-muted-foreground">Starting camera…</p>
-          </div>
-        )}
 
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 bg-black/90 text-center">
