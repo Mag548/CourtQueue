@@ -10,13 +10,16 @@ import {
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@/lib/supabase/types";
+import { saveMobileOAuthState } from "@/lib/mobile-oauth";
 
 interface AuthContextType {
   user: SupabaseUser | null;
   profile: User | null;
   session: Session | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (options?: {
+    mobileReturn?: { tab: "map" | "courts" | "active"; sheet: "hidden" | "peek" | "open" };
+  }) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (
     email: string,
@@ -77,11 +80,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase, fetchProfile]);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (options?: {
+    mobileReturn?: { tab: "map" | "courts" | "active"; sheet: "hidden" | "peek" | "open" };
+  }) => {
+    const path =
+      typeof window !== "undefined" ? window.location.pathname : "/app";
+    const returnPath = path === "/" ? "/app" : path;
+
+    if (options?.mobileReturn) {
+      saveMobileOAuthState(options.mobileReturn);
+    } else if (typeof window !== "undefined" && window.innerWidth < 768) {
+      saveMobileOAuthState({ tab: "courts", sheet: "peek" });
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/app`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnPath)}`,
       },
     });
     if (error) throw error;
@@ -105,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/app`,
       },
     });
     if (error) throw error;

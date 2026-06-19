@@ -15,6 +15,8 @@ interface AuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  /** Persist mobile layout before Google OAuth redirect (full page reload). */
+  mobileReturn?: { tab: "map" | "courts" | "active"; sheet: "hidden" | "peek" | "open" };
 }
 
 const GoogleIcon = () => (
@@ -43,7 +45,7 @@ const PaddleLogo = () => (
   </svg>
 );
 
-export function AuthModal({ open, onOpenChange, onSuccess }: AuthModalProps) {
+export function AuthModal({ open, onOpenChange, onSuccess, mobileReturn }: AuthModalProps) {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const [tab,       setTab]       = useState<Tab>("signin");
   const [loading,   setLoading]   = useState(false);
@@ -66,7 +68,7 @@ export function AuthModal({ open, onOpenChange, onSuccess }: AuthModalProps) {
     setLoading(true);
     setGoogleErr(false);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle({ mobileReturn });
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
       const unconfigured = msg.includes("provider") || msg.includes("not enabled") || msg.includes("unsupported") || msg.includes("disabled");

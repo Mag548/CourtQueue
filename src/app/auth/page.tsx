@@ -46,7 +46,7 @@ export default function AuthPage() {
     try {
       await signInWithEmail(signInData.email, signInData.password);
       toast.success("Welcome back!");
-      router.push("/");
+      router.push("/app");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
     } finally {

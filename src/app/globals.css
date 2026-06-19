@@ -90,13 +90,17 @@ html, body {
   overscroll-behavior: none;
 }
 
-/* App route only — lock body so map panning can't scroll the page ───────── */
+/* Scroll lock for /app on mobile (set by app/layout.tsx) ─────────────────── */
 @media (max-width: 767px) {
-  body.map-app-active {
+  html[data-cq-app="mobile"],
+  html[data-cq-app="mobile"] body {
     overflow: hidden;
     height: 100%;
-    position: fixed;
     width: 100%;
+  }
+  html[data-cq-app="mobile"] body {
+    position: fixed;
+    inset: 0;
   }
 }
 

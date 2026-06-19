@@ -32,6 +32,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+import { consumeMobileOAuthState } from "@/lib/mobile-oauth";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -183,22 +184,28 @@ export default function HomePage() {
     }
   }, [selectedCourt]);
 
-  // Restore sensible mobile state after sign-in (e.g. Google OAuth redirect)
+  // Restore mobile layout after Google OAuth (session survives full page reload)
   useEffect(() => {
-    if (user && typeof window !== "undefined" && window.innerWidth < 768) {
-      if (mobileTab === "map") return; // user intentionally on map view
-      setMobileTab("courts");
-      setMobileSheet((s) => (s === "hidden" ? "peek" : s));
+    const saved = consumeMobileOAuthState();
+    if (saved) {
+      setMobileTab(saved.tab);
+      setMobileSheet(saved.sheet === "hidden" ? "peek" : saved.sheet);
+      setAuthModalOpen(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  // Prevent iOS Safari from scrolling the page behind the mobile map
-  useEffect(() => {
-    if (typeof window === "undefined" || window.innerWidth >= 768) return;
-    document.body.classList.add("map-app-active");
-    return () => { document.body.classList.remove("map-app-active"); };
   }, []);
+
+  // Keep mobile layout stable after email sign-in (no redirect)
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" || window.innerWidth >= 768) return;
+      setAuthModalOpen(false);
+      setMobileTab((t) => (t === "map" ? "map" : "courts"));
+      setMobileSheet((s) => (s === "hidden" ? "peek" : s));
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   // ── Court list (shared by desktop sidebar + mobile sheet) ─────────────────
   const CourtList = () => (
@@ -568,14 +575,26 @@ export default function HomePage() {
             );
           })}
         </div>
-
-        {/* Auth modal for mobile account tab */}
-        <AuthModal
-          open={authModalOpen}
-          onOpenChange={setAuthModalOpen}
-          onSuccess={() => setAuthModalOpen(false)}
-        />
       </div>
+
+      {/* Auth modal at page root — survives Google OAuth full-page redirect */}
+      <AuthModal
+        open={authModalOpen}
+        mobileReturn={{
+          tab: mobileTab === "account" ? "courts" : mobileTab,
+          sheet: mobileSheet,
+        }}
+        onOpenChange={(open) => {
+          setAuthModalOpen(open);
+          if (!open && window.innerWidth < 768) {
+            requestAnimationFrame(() => {
+              setMobileTab((t) => (t === "map" ? "map" : "courts"));
+              setMobileSheet((s) => (s === "hidden" ? "peek" : s));
+            });
+          }
+        }}
+        onSuccess={() => setAuthModalOpen(false)}
+      />
     </div>
   );
 }
