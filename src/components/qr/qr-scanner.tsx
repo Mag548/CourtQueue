@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Camera, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { parseCourtIdFromScan } from "@/lib/court-qr";
+import { APP_NAME, APP_SLUG } from "@/lib/brand";
 
-const SCANNER_ID_PREFIX = "courtqueue-qr-scanner";
+const SCANNER_ID_PREFIX = `${APP_SLUG}-qr-scanner`;
 
 interface QrScannerProps {
   onScan?: (courtId: string) => void;
@@ -45,7 +46,7 @@ export function QrScanner({ onScan, className }: QrScannerProps) {
             if (handledRef.current) return;
             const courtId = parseCourtIdFromScan(decoded);
             if (!courtId) {
-              toast.error("That QR code isn't for a CourtQueue court.");
+              toast.error(`That QR code isn't for a ${APP_NAME} court.`);
               return;
             }
             handledRef.current = true;
@@ -94,7 +95,7 @@ export function QrScanner({ onScan, className }: QrScannerProps) {
             <div className="space-y-1">
               <p className="text-sm font-medium text-white">Starting camera…</p>
               <p className="text-xs text-white/70 max-w-[240px]">
-                Hold it up to the QR code on the CourtQueue sign by the court
+                Hold it up to the QR code on the {APP_NAME} sign by the court
               </p>
             </div>
           </div>
@@ -120,7 +121,7 @@ export function QrScanner({ onScan, className }: QrScannerProps) {
 
       <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground justify-center">
         <Camera className="w-3.5 h-3.5 shrink-0 text-primary" />
-        Point at the CourtQueue sign posted by the court
+        Point at the {APP_NAME} sign posted by the court
       </div>
     </div>
   );

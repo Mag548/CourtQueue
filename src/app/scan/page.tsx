@@ -3,6 +3,7 @@
 import { QrScanner } from "@/components/qr/qr-scanner";
 import { AppHeader } from "@/components/layout/app-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { APP_NAME } from "@/lib/brand";
 
 export default function ScanPage() {
   return (
@@ -13,7 +14,7 @@ export default function ScanPage() {
         <div className="w-full mb-6 text-center">
           <h1 className="text-xl font-semibold text-primary">Scan court sign</h1>
           <p className="text-sm text-on-surface-variant mt-1">
-            Point your camera at the QR code on the CourtQueue sign by the court
+            Point your camera at the QR code on the {APP_NAME} sign by the court
           </p>
         </div>
         <QrScanner />

@@ -120,7 +120,7 @@ function amenitiesForType(courtType) {
 }
 
 /**
- * Group ArcGIS point features into one CourtQueue location per park.
+ * Group ArcGIS point features into one Courtsy location per park.
  * @param {import('./oakville-types').ArcGISFeature[]} features
  */
 export function consolidateOakvilleCourts(features) {

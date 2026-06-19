@@ -34,6 +34,7 @@ import {
   isSessionActive,
 } from "@/lib/court-availability";
 import { useCourtTimerAlerts } from "@/hooks/use-court-timer-alerts";
+import { APP_NAME } from "@/lib/brand";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PageState = "loading" | "auth" | "queue" | "on_court_untimed" | "on_court_timed" | "join";
@@ -201,7 +202,7 @@ export default function CourtScanPage() {
             <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
               <QrCode className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold gradient-text">CourtQueue</span>
+            <span className="text-xl font-bold gradient-text">{APP_NAME}</span>
           </div>
           {court ? (
             <>
@@ -417,7 +418,7 @@ export default function CourtScanPage() {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground/50">
-          Scanned at {court?.name ?? "this court"} · CourtQueue
+          Scanned at {court?.name ?? "this court"} · {APP_NAME}
         </p>
       </div>
     </div>

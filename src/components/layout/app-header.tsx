@@ -6,6 +6,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/lib/brand";
 
 type SportFilter = "all" | "tennis" | "pickleball";
 
@@ -54,7 +55,7 @@ export function AppHeader({
           className="text-primary-fixed text-xl"
         />
         <span className="text-lg font-bold tracking-tighter text-primary-fixed hidden sm:inline">
-          CourtQueue
+          {APP_NAME}
         </span>
       </Link>
 

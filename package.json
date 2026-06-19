@@ -1,6 +1,7 @@
 {
-  "name": "courtqueue",
+  "name": "courtsy",
   "version": "0.1.0",
+  "description": "Courtsy — public court queue for Oakville tennis and pickleball",
   "private": true,
   "scripts": {
     "dev": "node node_modules/next/dist/bin/next dev",

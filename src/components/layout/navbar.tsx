@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { isAdminEmail } from "@/lib/admin";
+import { APP_NAME } from "@/lib/brand";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +68,7 @@ export function Navbar() {
             <PaddleLogo className="w-5 h-5 text-primary-foreground" />
           </div>
           <span className="font-bold text-lg tracking-tight gradient-text">
-            CourtQueue
+            {APP_NAME}
           </span>
         </Link>
 

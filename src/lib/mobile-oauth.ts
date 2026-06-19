@@ -1,5 +1,6 @@
-/** Session key used to restore mobile layout after Google OAuth (full page reload). */
-export const MOBILE_OAUTH_KEY = "cq-mobile-oauth-return";
+import { MOBILE_OAUTH_KEY } from "@/lib/brand";
+
+export { MOBILE_OAUTH_KEY };
 
 export type MobileOAuthState = {
   tab: "map" | "courts" | "active";

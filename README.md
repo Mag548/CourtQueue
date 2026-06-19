@@ -1,4 +1,4 @@
-# CourtQueue
+# Courtsy
 
 A modern, real-time court booking and queue management app for public tennis and pickleball courts in Oakville, Ontario. Court locations are synced from the Town of Oakville ArcGIS open data layer.
 
@@ -49,8 +49,8 @@ A modern, real-time court booking and queue management app for public tennis and
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/CourtQueue.git
-cd CourtQueue
+git clone https://github.com/Mag548/Courtsy.git
+cd Courtsy
 npm install
 ```
 

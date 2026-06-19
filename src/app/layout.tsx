@@ -3,6 +3,7 @@ import { Inter, Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { APP_NAME } from "@/lib/brand";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -15,10 +16,18 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "CourtQueue — Skip the Wait, Play More",
+  applicationName: APP_NAME,
+  title: {
+    default: `${APP_NAME} — Skip the Wait, Play More`,
+    template: `%s | ${APP_NAME}`,
+  },
   description:
     "Find public tennis and pickleball courts near you and join a virtual queue.",
-  keywords: ["tennis", "pickleball", "court", "queue", "sports"],
+  keywords: ["courtsy", "tennis", "pickleball", "court", "queue", "sports", "oakville"],
+  appleWebApp: {
+    capable: true,
+    title: APP_NAME,
+  },
 };
 
 export default function RootLayout({

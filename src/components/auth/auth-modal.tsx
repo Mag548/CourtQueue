@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { toast } from "sonner";
+import { APP_NAME } from "@/lib/brand";
 
 type Tab = "signin" | "signup";
 
@@ -123,7 +124,7 @@ export function AuthModal({ open, onOpenChange, onSuccess, mobileReturn }: AuthM
             <div className="w-8 h-8"><PaddleLogo /></div>
           </div>
           <DialogTitle className="relative text-lg font-bold tracking-tight text-white mb-0.5">
-            CourtQueue
+            {APP_NAME}
           </DialogTitle>
           <p className="relative text-xs text-white/40 font-medium">
             {tab === "signin" ? "Welcome back — sign in to continue" : "Create your free account"}
@@ -293,7 +294,7 @@ export function AuthModal({ open, onOpenChange, onSuccess, mobileReturn }: AuthM
           <p className="text-center text-xs text-white/35 pt-1">
             {tab === "signin" ? (
               <>
-                New to CourtQueue?{" "}
+                New to {APP_NAME}?{" "}
                 <button onClick={() => switchTab("signup")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
                   Create a free account
                 </button>

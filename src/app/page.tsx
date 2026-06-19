@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowRight, MapPin, Bell, Timer, ChevronDown } from "lucide-react";
+import { APP_NAME } from "@/lib/brand";
 
 function LogoPaddleIcon() {
   return (
@@ -88,7 +89,7 @@ export default function LandingPage() {
             <LogoPaddleIcon />
           </div>
           <span className="text-sm font-semibold tracking-[0.25em] uppercase text-white/40">
-            CourtQueue
+            {APP_NAME}
           </span>
         </div>
 

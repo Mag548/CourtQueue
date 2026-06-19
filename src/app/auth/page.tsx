@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { APP_NAME } from "@/lib/brand";
 
 type Tab = "signin" | "signup";
 
@@ -145,7 +146,7 @@ export default function AuthPage() {
               </div>
             </div>
             <h1 className="text-xl font-bold tracking-tight gradient-text">
-              CourtQueue
+              {APP_NAME}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {tab === "signin"
@@ -339,7 +340,7 @@ export default function AuthPage() {
             <p className="text-center text-xs text-muted-foreground pt-1">
               {tab === "signin" ? (
                 <>
-                  New to CourtQueue?{" "}
+                  New to {APP_NAME}?{" "}
                   <button
                     type="button"
                     onClick={() => switchTab("signup")}
