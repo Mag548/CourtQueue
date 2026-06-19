@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -47,11 +47,25 @@ const submitClass =
   "w-full h-11 rounded-xl gradient-primary text-primary-foreground font-bold text-sm tracking-tight shadow-lg shadow-primary/25 hover:opacity-90 transition-opacity";
 
 export default function AuthPage() {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail } =
+    useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("signin");
   const [loading, setLoading] = useState(false);
   const [googleErr, setGoogleErr] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) router.replace("/app");
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "auth_failed") {
+      toast.error("Sign-in failed. Please try again.");
+    }
+  }, []);
 
   const [signInData, setSignInData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({

@@ -12,6 +12,11 @@ import { createClient } from "@/lib/supabase/client";
 import type { User } from "@/lib/supabase/types";
 import { saveMobileOAuthState } from "@/lib/mobile-oauth";
 
+function oauthReturnPath(pathname: string): string {
+  if (pathname === "/" || pathname === "/auth") return "/app";
+  return pathname;
+}
+
 interface AuthContextType {
   user: SupabaseUser | null;
   profile: User | null;
@@ -85,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }) => {
     const path =
       typeof window !== "undefined" ? window.location.pathname : "/app";
-    const returnPath = path === "/" ? "/app" : path;
+    const returnPath = oauthReturnPath(path);
 
     if (options?.mobileReturn) {
       saveMobileOAuthState(options.mobileReturn);

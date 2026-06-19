@@ -5,7 +5,8 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const rawNext = searchParams.get("next") ?? "/app";
-  const next = rawNext === "/" ? "/app" : rawNext;
+  const next =
+    rawNext === "/" || rawNext === "/auth" ? "/app" : rawNext;
 
   if (code) {
     const supabase = await createClient();
