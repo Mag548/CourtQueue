@@ -23,13 +23,19 @@ import {
   Trophy,
   Navigation,
   ExternalLink,
+  QrCode,
+  BarChart2,
+  Check,
 } from "lucide-react";
 import type { CourtWithQueue, QueueEntry } from "@/lib/supabase/types";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useQueue } from "@/hooks/use-queue";
 import { createClient } from "@/lib/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 import { AuthModal } from "@/components/auth/auth-modal";
+import QRCode from "react-qr-code";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface CourtCardProps {
   court: CourtWithQueue;
@@ -123,6 +129,107 @@ function QueueEntryRow({
   );
 }
 
+// ── Traffic report panel ──────────────────────────────────────────────────────
+function TrafficReportPanel({ courtId, numCourts, onClose }: {
+  courtId: string; numCourts: number; onClose: () => void;
+}) {
+  const { user } = useAuth();
+  const supabase = createClient();
+  const [selected, setSelected] = useState<number | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (selected === null || !user) return;
+    setLoading(true);
+    const { error } = await supabase.from("court_traffic_reports").insert({
+      court_id: courtId,
+      user_id: user.id,
+      occupied_courts: selected,
+    });
+    setLoading(false);
+    if (error) { toast.error("Failed to submit report"); return; }
+    setSubmitted(true);
+    toast.success("Thanks for reporting court traffic!");
+    setTimeout(onClose, 1500);
+  };
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-4 text-center">
+        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+          <Check className="w-5 h-5 text-primary" />
+        </div>
+        <p className="text-sm font-medium">Report submitted!</p>
+        <p className="text-xs text-muted-foreground">This helps others plan their visit.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center space-y-1">
+        <p className="text-sm font-semibold">How many courts are occupied</p>
+        <p className="text-xs text-muted-foreground">by players not using the app?</p>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {Array.from({ length: numCourts + 1 }, (_, i) => i).map((n) => (
+          <button
+            key={n}
+            onClick={() => setSelected(n)}
+            className={`py-3 rounded-2xl text-sm font-bold border transition-all ${
+              selected === n
+                ? "border-primary bg-primary/20 text-primary"
+                : "border-white/[0.08] bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08]"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground text-center">
+        0 = all courts free for queue · {numCourts} = all courts occupied
+      </p>
+      <Button
+        className="w-full h-11 rounded-2xl gradient-primary text-primary-foreground font-semibold"
+        onClick={handleSubmit}
+        disabled={selected === null || loading}
+      >
+        {loading ? "Submitting…" : "Submit Report"}
+      </Button>
+    </div>
+  );
+}
+
+// ── Recent traffic indicator ──────────────────────────────────────────────────
+function TrafficBadge({ courtId }: { courtId: string }) {
+  const supabase = createClient();
+  const [occupancy, setOccupancy] = useState<number | null>(null);
+
+  useEffect(() => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    supabase
+      .from("court_traffic_reports")
+      .select("occupied_courts, reported_at")
+      .eq("court_id", courtId)
+      .gt("reported_at", twoHoursAgo)
+      .order("reported_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setOccupancy(data.occupied_courts);
+      });
+  }, [courtId, supabase]);
+
+  if (occupancy === null) return null;
+  return (
+    <span className="text-xs px-2.5 py-1 rounded-full bg-yellow-500/15 border border-yellow-500/25 text-yellow-400 flex items-center gap-1">
+      <BarChart2 className="w-3 h-3" />
+      {occupancy === 0 ? "Reported: all free" : `Reported: ${occupancy} occupied`}
+    </span>
+  );
+}
+
 export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
   const { user } = useAuth();
   const router = useRouter();
@@ -137,6 +244,8 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
   const [queueWithUsers, setQueueWithUsers] = useState<
     (QueueEntry & { user?: { full_name: string | null; avatar_url: string | null } })[]
   >([]);
+  const [showTrafficReport, setShowTrafficReport] = useState(false);
+  const [showQR, setShowQR] = useState(false);
   const supabase = createClient();
 
   const waitingEntries = court.queue?.queue_entries?.filter(
@@ -286,6 +395,73 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
             Google Maps
           </Button>
         </div>
+
+        {/* QR + Traffic row */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 h-10 rounded-2xl gap-2 text-xs border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]"
+            onClick={() => setShowQR(true)}
+          >
+            <QrCode className="w-3.5 h-3.5 text-primary" />
+            Court QR Code
+          </Button>
+          {user && (
+            <Button
+              variant="outline"
+              className="flex-1 h-10 rounded-2xl gap-2 text-xs border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]"
+              onClick={() => setShowTrafficReport(true)}
+            >
+              <BarChart2 className="w-3.5 h-3.5 text-yellow-400" />
+              Report Traffic
+            </Button>
+          )}
+        </div>
+
+        {/* Recent traffic indicator */}
+        <TrafficBadge courtId={court.id} />
+
+        {/* QR Code Dialog */}
+        <Dialog open={showQR} onOpenChange={setShowQR}>
+          <DialogContent className="sm:max-w-[320px] p-6 rounded-3xl border-white/[0.08] bg-[#0a0a0a]">
+            <DialogTitle className="text-center font-bold">{court.name}</DialogTitle>
+            <div className="flex flex-col items-center gap-4 mt-2">
+              <div className="bg-white p-4 rounded-2xl">
+                <QRCode
+                  value={`${typeof window !== "undefined" ? window.location.origin : "https://courtqueue.vercel.app"}/court/${court.id}`}
+                  size={180}
+                  style={{ display: "block" }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Scan to instantly join the queue or start a session at this court
+              </p>
+              <Button
+                variant="outline"
+                className="w-full rounded-2xl border-white/[0.08]"
+                onClick={() => {
+                  const url = `${window.location.origin}/court/${court.id}`;
+                  navigator.clipboard.writeText(url);
+                  toast.success("Link copied!");
+                }}
+              >
+                Copy Link
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Traffic Report Dialog */}
+        <Dialog open={showTrafficReport} onOpenChange={setShowTrafficReport}>
+          <DialogContent className="sm:max-w-[340px] p-6 rounded-3xl border-white/[0.08] bg-[#0a0a0a]">
+            <DialogTitle className="text-center font-bold mb-2">Report Court Traffic</DialogTitle>
+            <TrafficReportPanel
+              courtId={court.id}
+              numCourts={court.num_courts}
+              onClose={() => setShowTrafficReport(false)}
+            />
+          </DialogContent>
+        </Dialog>
 
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-2.5">

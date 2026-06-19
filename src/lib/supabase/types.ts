@@ -72,6 +72,33 @@ export type Database = {
           },
         ]
       }
+      court_traffic_reports: {
+        Row: {
+          id: string
+          court_id: string
+          user_id: string | null
+          occupied_courts: number
+          note: string | null
+          reported_at: string
+        }
+        Insert: {
+          id?: string
+          court_id: string
+          user_id?: string | null
+          occupied_courts: number
+          note?: string | null
+          reported_at?: string
+        }
+        Update: {
+          id?: string
+          court_id?: string
+          user_id?: string | null
+          occupied_courts?: number
+          note?: string | null
+          reported_at?: string
+        }
+        Relationships: []
+      }
       courts: {
         Row: {
           address: string | null
