@@ -77,6 +77,7 @@ export default function ProfilePage() {
         started_playing_at: entry.started_playing_at,
         invite_code: entry.invite_code ?? null,
         extended_at: entry.extended_at ?? null,
+        assigned_court_number: entry.assigned_court_number ?? null,
         court: entry.queue?.court ?? null,
       })));
     }

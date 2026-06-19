@@ -27,9 +27,16 @@ import {
   estimateWaitForPosition,
   formatWaitMinutes,
 } from "@/lib/court-traffic";
+import {
+  countActiveSessions,
+  getAvailableCourts,
+  getOpenTimerOrder,
+  openPlayMessage,
+  isSessionActive,
+} from "@/lib/court-availability";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type PageState = "loading" | "auth" | "queue" | "ready" | "session" | "join";
+type PageState = "loading" | "auth" | "queue" | "on_court_open" | "on_court_timed" | "join";
 
 function CountdownTimer({ expiresAt }: { expiresAt: string }) {
   const [display, setDisplay] = useState("");
@@ -61,13 +68,13 @@ export default function CourtScanPage() {
   const { courtId } = useParams<{ courtId: string }>();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { joinQueue, startSession, endSession, loading: queueLoading } = useQueue();
+  const { joinQueue, endSession, loading: queueLoading } = useQueue();
   const supabase = createClient();
 
   const [court, setCourt] = useState<Court | null>(null);
   const [queueLen, setQueueLen] = useState(0);
   const [userEntry, setUserEntry] = useState<QueueEntry | null>(null);
-  const [activeSession, setActiveSession] = useState<CourtSession | null>(null);
+  const [activeSessions, setActiveSessions] = useState<CourtSession[]>([]);
   const [pageState, setPageState] = useState<PageState>("loading");
   const [authOpen, setAuthOpen] = useState(false);
   const [partySize, setPartySize] = useState(1);
@@ -75,11 +82,17 @@ export default function CourtScanPage() {
   const actionInFlight = useRef(false);
   const { recentOccupied, hourlyActivity, totalReports } = useCourtTraffic(courtId);
 
+  const appOccupiedCount = countActiveSessions(activeSessions);
+  const availableCourts = court
+    ? getAvailableCourts(court.num_courts, activeSessions, recentOccupied)
+    : 0;
+  const userSession = activeSessions.find((s) => s.user_id === user?.id) ?? null;
+
   const estimatedWait = court
     ? estimateWaitMinutes({
         numCourts: court.num_courts,
         queueLength: queueLen,
-        hasActiveSession: !!activeSession,
+        appOccupiedCount,
         reportedOccupied: recentOccupied,
       })
     : 0;
@@ -98,14 +111,12 @@ export default function CourtScanPage() {
     await supabase.rpc("expire_old_sessions");
 
     // Active session?
-    const { data: session } = await supabase
+    const { data: sessions } = await supabase
       .from("court_sessions")
       .select("*")
       .eq("court_id", courtId)
-      .eq("status", "active")
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-    setActiveSession(session);
+      .eq("status", "active");
+    setActiveSessions((sessions ?? []).filter(isSessionActive));
 
     // Queue length
     const { data: queue } = await supabase
@@ -144,18 +155,16 @@ export default function CourtScanPage() {
     if (!court) return; // still fetching
 
     if (userEntry?.status === "playing") {
-      setPageState("session");
-    } else if (
-      userEntry &&
-      (userEntry.position === 1 || userEntry.status === "notified")
-    ) {
-      setPageState("ready");
+      const session = activeSessions.find((s) => s.queue_entry_id === userEntry.id);
+      setPageState(
+        session?.expires_at ? "on_court_timed" : "on_court_open"
+      );
     } else if (userEntry) {
       setPageState("queue");
     } else {
       setPageState("join");
     }
-  }, [authLoading, user, court, userEntry, activeSession, queueLen]);
+  }, [authLoading, user, court, userEntry, activeSessions, queueLen]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -165,15 +174,10 @@ export default function CourtScanPage() {
     actionInFlight.current = true;
     const entry = await joinQueue(courtId, user.id, sport, partySize);
     actionInFlight.current = false;
-    if (entry) await fetchData();
-  };
-
-  const handleStartSession = async () => {
-    if (!user || !userEntry || actionInFlight.current) return;
-    actionInFlight.current = true;
-    await startSession(courtId, userEntry.id, user.id);
-    actionInFlight.current = false;
-    router.push(`/queue/${courtId}`);
+    if (entry) {
+      await fetchData();
+      if (entry.status === "playing") return;
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -212,7 +216,7 @@ export default function CourtScanPage() {
         {court && (
           <div className="grid grid-cols-3 gap-2">
             {[
-              { icon: Trophy, label: "Courts", value: court.num_courts },
+              { icon: Trophy, label: "Available", value: `${availableCourts}/${court.num_courts}` },
               { icon: Users,  label: "Waiting", value: queueLen },
               { icon: Clock,  label: "Est. wait", value: formatWaitMinutes(estimatedWait) },
             ].map(({ icon: Icon, label, value }) => (
@@ -270,39 +274,54 @@ export default function CourtScanPage() {
           </div>
         )}
 
-        {/* READY TO START (position #1) */}
-        {pageState === "ready" && userEntry && (
+        {/* ON COURT — open-ended (no timer yet) */}
+        {pageState === "on_court_open" && userEntry && (
           <div className="space-y-4">
-            <div className="rounded-3xl bg-primary/10 border border-primary/25 p-6 text-center space-y-2">
+            <div className="rounded-3xl bg-green-500/10 border border-green-500/25 p-6 text-center space-y-2">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-                Your position
+                Your court
               </p>
-              <p className="text-7xl font-black text-primary">#{userEntry.position}</p>
-              <p className="text-sm text-primary/80 flex items-center justify-center gap-1">
-                <Zap className="w-3.5 h-3.5" /> You&apos;re up next!
+              <p className="text-7xl font-black text-green-400">
+                Court {userEntry.assigned_court_number ?? userSession?.court_number ?? "—"}
               </p>
-              <p className="text-xs text-muted-foreground">
-                Head to the court and start your session when ready
+              <p className="text-sm font-semibold text-green-400">Enjoy your time!</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {openPlayMessage(
+                  getOpenTimerOrder(activeSessions, userEntry.id)
+                )}
               </p>
             </div>
-            <Button
-              className="w-full h-14 rounded-2xl gradient-primary font-bold text-primary-foreground text-base shadow-lg shadow-primary/20"
-              onClick={handleStartSession}
-              disabled={queueLoading}
-            >
-              {queueLoading ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              ) : (
-                <Zap className="w-5 h-5 mr-2" />
-              )}
-              Start Session
-            </Button>
             <Button
               variant="outline"
               className="w-full h-11 rounded-2xl border-white/[0.08]"
               onClick={() => router.push(`/queue/${courtId}`)}
             >
-              View full queue details
+              View full details
+              <ChevronRight className="w-4 h-4 ml-auto" />
+            </Button>
+          </div>
+        )}
+
+        {/* ON COURT — timed session */}
+        {pageState === "on_court_timed" && userEntry && userSession?.expires_at && (
+          <div className="space-y-4 text-center">
+            <div className="rounded-3xl bg-orange-500/10 border border-orange-500/25 p-6 space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                Court {userEntry.assigned_court_number ?? userSession.court_number}
+              </p>
+              <div className="flex items-center justify-center gap-1.5 text-orange-400 text-sm font-medium mb-3">
+                <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                Session in progress
+              </div>
+              <CountdownTimer expiresAt={userSession.expires_at} />
+              <p className="text-xs text-muted-foreground">Time remaining</p>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full h-11 rounded-2xl border-white/[0.08]"
+              onClick={() => router.push(`/queue/${courtId}`)}
+            >
+              Manage session
               <ChevronRight className="w-4 h-4 ml-auto" />
             </Button>
           </div>
@@ -324,7 +343,7 @@ export default function CourtScanPage() {
                   estimateWaitForPosition(
                     userEntry.position,
                     court?.num_courts ?? 1,
-                    !!activeSession,
+                    appOccupiedCount,
                     recentOccupied
                   )
                 )}
@@ -336,28 +355,6 @@ export default function CourtScanPage() {
               onClick={() => router.push(`/queue/${courtId}`)}
             >
               View full queue details
-              <ChevronRight className="w-4 h-4 ml-auto" />
-            </Button>
-          </div>
-        )}
-
-        {/* ACTIVE SESSION */}
-        {pageState === "session" && userEntry && activeSession && (
-          <div className="space-y-4 text-center">
-            <div className="rounded-3xl bg-orange-500/10 border border-orange-500/25 p-6 space-y-2">
-              <div className="flex items-center justify-center gap-1.5 text-orange-400 text-sm font-medium mb-3">
-                <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-                Session in progress
-              </div>
-              <CountdownTimer expiresAt={activeSession.expires_at} />
-              <p className="text-xs text-muted-foreground">Time remaining</p>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full h-11 rounded-2xl border-white/[0.08]"
-              onClick={() => router.push(`/queue/${courtId}`)}
-            >
-              Manage session
               <ChevronRight className="w-4 h-4 ml-auto" />
             </Button>
           </div>

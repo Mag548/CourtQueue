@@ -41,6 +41,12 @@ import {
   estimateWaitForPosition,
   formatWaitMinutes,
 } from "@/lib/court-traffic";
+import {
+  countActiveSessions,
+  getAvailableCourts,
+  getOpenTimerOrder,
+  openPlayMessage,
+} from "@/lib/court-availability";
 
 interface CourtCardProps {
   court: CourtWithQueue;
@@ -91,20 +97,20 @@ function QueueEntryRow({
   index,
   isCurrentUser,
   numCourts,
-  hasActiveSession,
+  appOccupiedCount,
   reportedOccupied,
 }: {
   entry: QueueEntry & { user?: { full_name: string | null; avatar_url: string | null } };
   index: number;
   isCurrentUser: boolean;
   numCourts: number;
-  hasActiveSession: boolean;
+  appOccupiedCount: number;
   reportedOccupied: number;
 }) {
   const waitMins = estimateWaitForPosition(
     index + 1,
     numCourts,
-    hasActiveSession,
+    appOccupiedCount,
     reportedOccupied
   );
 
@@ -221,7 +227,7 @@ function TrafficReportPanel({ courtId, numCourts, onClose, onSubmitted }: {
 export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
   const { user } = useAuth();
   const router = useRouter();
-  const { joinQueue, leaveQueue, getUserQueueEntry, startSession, endSession, loading } =
+  const { joinQueue, leaveQueue, getUserQueueEntry, endSession, loading } =
     useQueue();
   const [userEntry, setUserEntry] = useState<QueueEntry | null>(null);
   const [partySize, setPartySize] = useState(1);
@@ -241,11 +247,17 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
     (e) => e.status === "waiting"
   ) ?? [];
 
-  const hasActiveSession = !!court.active_session;
+  const appOccupiedCount = countActiveSessions(court.active_sessions);
+  const availableCourts = getAvailableCourts(
+    court.num_courts,
+    court.active_sessions,
+    recentOccupied
+  );
+  const userSession = court.active_sessions.find((s) => s.user_id === user?.id);
   const estimatedWait = estimateWaitMinutes({
     numCourts: court.num_courts,
     queueLength: waitingEntries.length,
-    hasActiveSession,
+    appOccupiedCount,
     reportedOccupied: recentOccupied,
   });
 
@@ -301,15 +313,10 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
     fetchQueueWithUsers();
   };
 
-  const handleStartSession = async () => {
-    if (!user || !userEntry) return;
-    await startSession(court.id, userEntry.id, user.id);
-    fetchUserEntry();
-  };
-
   const handleEndSession = async () => {
-    if (!court.active_session) return;
-    await endSession(court.active_session.id);
+    if (!userSession) return;
+    await endSession(userSession.id);
+    fetchUserEntry();
   };
 
   const courtTypeLabel = {
@@ -336,10 +343,10 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
               >
                 {courtTypeLabel}
               </Badge>
-              {court.active_session && (
+              {appOccupiedCount > 0 && (
                 <Badge className="text-xs rounded-lg bg-orange-500/20 text-orange-400 border-orange-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-400 mr-1 pulse-green" />
-                  Court Active
+                  {appOccupiedCount} playing
                 </Badge>
               )}
             </div>
@@ -421,9 +428,12 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
           <div className="rounded-2xl bg-white/[0.04] border border-white/[0.05] p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
               <Trophy className="w-3 h-3" />
-              <span className="text-xs">Courts</span>
+              <span className="text-xs">Available</span>
             </div>
-            <p className="text-xl font-bold">{court.num_courts}</p>
+            <p className="text-xl font-bold">
+              {availableCourts}
+              <span className="text-sm text-muted-foreground font-normal">/{court.num_courts}</span>
+            </p>
           </div>
           <div className="rounded-2xl bg-white/[0.04] border border-white/[0.05] p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
@@ -451,10 +461,10 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
         />
 
         {/* Active Session Timer */}
-        {court.active_session && (
+        {userSession?.expires_at && (
           <div className="flex items-center justify-between bg-orange-500/10 border border-orange-500/20 rounded-2xl px-4 py-3">
-            <span className="text-sm text-orange-400">Current session</span>
-            <SessionTimer expiresAt={court.active_session.expires_at} />
+            <span className="text-sm text-orange-400">Your session</span>
+            <SessionTimer expiresAt={userSession.expires_at} />
           </div>
         )}
 
@@ -475,7 +485,7 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
                   index={i}
                   isCurrentUser={entry.user_id === user?.id}
                   numCourts={court.num_courts}
-                  hasActiveSession={hasActiveSession}
+                  appOccupiedCount={appOccupiedCount}
                   reportedOccupied={recentOccupied}
                 />
               ))}
@@ -487,50 +497,80 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
         {user ? (
           userEntry ? (
             <div className="space-y-3">
-              <div className="bg-primary/10 border border-primary/25 rounded-2xl p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-0.5">
-                  Your position
-                </p>
-                <p className="text-3xl font-bold text-primary">
-                  #{userEntry.position}
-                </p>
-                {userEntry.position === 1 && (
-                  <p className="text-xs text-primary/80 mt-1 flex items-center justify-center gap-1">
-                    <Zap className="w-3 h-3" />
-                    You&apos;re up next!
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {userEntry.position === 1 && !court.active_session && (
-                  <Button
-                    className="flex-1 h-11 rounded-2xl gradient-primary text-primary-foreground font-semibold"
-                    onClick={handleStartSession}
-                    disabled={loading}
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Start Playing
-                  </Button>
-                )}
-                {court.active_session?.user_id === user.id && (
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-11 rounded-2xl border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
-                    onClick={handleEndSession}
-                    disabled={loading}
-                  >
-                    End Session
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  className="flex-1 h-11 rounded-2xl border-destructive/50 text-destructive hover:bg-destructive/10"
-                  onClick={handleLeave}
-                  disabled={loading}
-                >
-                  Leave Queue
-                </Button>
-              </div>
+              {userEntry.status === "playing" ? (
+                <>
+                  <div className="bg-green-500/10 border border-green-500/25 rounded-2xl p-4 text-center space-y-2">
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                      Your court
+                    </p>
+                    <p className="text-4xl font-black text-green-400">
+                      Court {userEntry.assigned_court_number ?? userSession?.court_number ?? "—"}
+                    </p>
+                    {userSession && !userSession.expires_at ? (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {openPlayMessage(
+                          getOpenTimerOrder(court.active_sessions, userEntry.id)
+                        )}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-green-400/80">Session in progress</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-11 rounded-2xl"
+                      onClick={() => router.push(`/queue/${court.id}`)}
+                    >
+                      View details
+                    </Button>
+                    {userSession && (
+                      <Button
+                        variant="outline"
+                        className="flex-1 h-11 rounded-2xl border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+                        onClick={handleEndSession}
+                        disabled={loading}
+                      >
+                        End Session
+                      </Button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-primary/10 border border-primary/25 rounded-2xl p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-0.5">
+                      Your position
+                    </p>
+                    <p className="text-3xl font-bold text-primary">
+                      #{userEntry.position}
+                    </p>
+                    {userEntry.position === 1 && (
+                      <p className="text-xs text-primary/80 mt-1 flex items-center justify-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        You&apos;re up next!
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-11 rounded-2xl"
+                      onClick={() => router.push(`/queue/${court.id}`)}
+                    >
+                      View details
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-11 rounded-2xl border-destructive/50 text-destructive hover:bg-destructive/10"
+                      onClick={handleLeave}
+                      disabled={loading}
+                    >
+                      Leave Queue
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

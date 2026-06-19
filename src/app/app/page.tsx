@@ -34,6 +34,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { consumeMobileOAuthState, MOBILE_OAUTH_KEY } from "@/lib/mobile-oauth";
+import {
+  countActiveSessions,
+  getAvailableCourts,
+} from "@/lib/court-availability";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -251,6 +255,12 @@ export default function HomePage() {
       ) : (
         filteredAndSortedCourts.map((court, i) => {
           const queueLen = court.queue?.queue_entries?.filter((e) => e.status === "waiting").length ?? 0;
+          const available = getAvailableCourts(
+            court.num_courts,
+            court.active_sessions,
+            0
+          );
+          const playing = countActiveSessions(court.active_sessions);
           const dist = (court as typeof court & { _distance?: number })._distance;
           return (
             <button
@@ -289,17 +299,17 @@ export default function HomePage() {
               <div className="flex items-center gap-3 text-xs">
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-                  {court.num_courts} courts
+                  {available}/{court.num_courts} available
                 </span>
                 <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${
                   queueLen > 0 ? "bg-primary/15 text-primary font-medium" : "bg-white/[0.04] text-muted-foreground"
                 }`}>
                   {queueLen === 0 ? "No queue" : `${queueLen} waiting`}
                 </span>
-                {court.active_session && (
+                {playing > 0 && (
                   <span className="text-orange-400 flex items-center gap-1 ml-auto">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-400 pulse-green" />
-                    Active
+                    {playing} playing
                   </span>
                 )}
               </div>

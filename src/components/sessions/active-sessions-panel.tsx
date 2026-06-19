@@ -95,11 +95,9 @@ export function ActiveSessionsPanel() {
           .select("*")
           .eq("queue_entry_id", e.id)
           .eq("status", "active")
-          .gt("expires_at", new Date().toISOString())
           .maybeSingle();
         session = s ?? null;
 
-        // Entry claims "playing" but session is gone — mark it expired and skip
         if (!session) {
           await supabase
             .from("queue_entries")
@@ -264,9 +262,20 @@ export function ActiveSessionsPanel() {
             {/* Timer (playing) */}
             {isPlaying && item.session && (
               <div className="flex items-center gap-2">
-                <Timer className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Time left:</span>
-                <Countdown expiresAt={item.session.expires_at} />
+                {item.session.expires_at ? (
+                  <>
+                    <Timer className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Time left:</span>
+                    <Countdown expiresAt={item.session.expires_at} />
+                  </>
+                ) : (
+                  <>
+                    <Trophy className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      Court {item.session.court_number ?? item.entry.assigned_court_number ?? "—"} · No timer yet
+                    </span>
+                  </>
+                )}
               </div>
             )}
 

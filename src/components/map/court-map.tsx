@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import type { CourtWithQueue } from "@/lib/supabase/types";
+import {
+  getAvailableCourts,
+  formatAvailableCourts,
+} from "@/lib/court-availability";
 
 interface CourtMapProps {
   courts: CourtWithQueue[];
@@ -251,6 +255,11 @@ export function CourtMap({ courts, selectedCourt, onCourtSelect, userLocation, m
           <div className="mt-4 space-y-1.5 max-h-80 overflow-y-auto">
             {courts.map((court) => {
               const qLen = court.queue?.queue_entries?.filter((e) => e.status === "waiting").length ?? 0;
+              const available = getAvailableCourts(
+                court.num_courts,
+                court.active_sessions ?? [],
+                0
+              );
               return (
                 <button
                   key={court.id}
@@ -270,7 +279,7 @@ export function CourtMap({ courts, selectedCourt, onCourtSelect, userLocation, m
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 capitalize">
-                    {court.court_type} · {court.num_courts} courts
+                    {court.court_type} · {formatAvailableCourts(available, court.num_courts)} available
                   </p>
                 </button>
               );

@@ -17,8 +17,9 @@ export type Database = {
       court_sessions: {
         Row: {
           court_id: string
+          court_number: number | null
           created_at: string | null
-          expires_at: string
+          expires_at: string | null
           extended: boolean | null
           id: string
           queue_entry_id: string | null
@@ -28,8 +29,9 @@ export type Database = {
         }
         Insert: {
           court_id: string
+          court_number?: number | null
           created_at?: string | null
-          expires_at: string
+          expires_at?: string | null
           extended?: boolean | null
           id?: string
           queue_entry_id?: string | null
@@ -39,8 +41,9 @@ export type Database = {
         }
         Update: {
           court_id?: string
+          court_number?: number | null
           created_at?: string | null
-          expires_at?: string
+          expires_at?: string | null
           extended?: boolean | null
           id?: string
           queue_entry_id?: string | null
@@ -143,6 +146,7 @@ export type Database = {
       }
       queue_entries: {
         Row: {
+          assigned_court_number: number | null
           extended_at: string | null
           id: string
           invite_code: string | null
@@ -157,6 +161,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_court_number?: number | null
           extended_at?: string | null
           id?: string
           invite_code?: string | null
@@ -171,6 +176,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_court_number?: number | null
           extended_at?: string | null
           id?: string
           invite_code?: string | null
@@ -267,6 +273,18 @@ export type Database = {
     Functions: {
       expire_old_sessions: { Args: Record<string, never>; Returns: undefined }
       generate_invite_code: { Args: Record<string, never>; Returns: string }
+      get_open_session_timer_order: {
+        Args: { p_court_id: string; p_entry_id: string }
+        Returns: number
+      }
+      process_after_queue_join: {
+        Args: { p_entry_id: string }
+        Returns: Json
+      }
+      promote_waiting_player: {
+        Args: { p_court_id: string }
+        Returns: undefined
+      }
       reorder_queue: { Args: { p_queue_id: string }; Returns: undefined }
     }
     Enums: {
@@ -287,5 +305,5 @@ export type CourtSession = Database["public"]["Tables"]["court_sessions"]["Row"]
 
 export type CourtWithQueue = Court & {
   queue: (Queue & { queue_entries: QueueEntry[] }) | null;
-  active_session: CourtSession | null;
+  active_sessions: CourtSession[];
 };

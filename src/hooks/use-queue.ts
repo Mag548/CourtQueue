@@ -84,7 +84,7 @@ export function useQueue() {
             user_id: userId,
             party_size: partySize,
             sport,
-            position,
+            position: (count ?? 0) + 1,
             status: "waiting",
           })
           .select()
@@ -100,35 +100,40 @@ export function useQueue() {
           throw error;
         }
 
-        toast.success(`You're #${position} in the queue!`);
-        return entry;
+        const { data: result, error: rpcError } = await supabase.rpc(
+          "process_after_queue_join",
+          { p_entry_id: entry.id }
+        );
+        if (rpcError) throw rpcError;
+
+        const { data: updated } = await supabase
+          .from("queue_entries")
+          .select("*")
+          .eq("id", entry.id)
+          .single();
+
+        const payload = result as {
+          assigned?: boolean;
+          court_number?: number;
+          position?: number;
+        };
+
+        if (payload?.assigned && payload.court_number) {
+          toast.success(
+            `You're on Court ${payload.court_number}! Enjoy — your timer starts when someone joins.`
+          );
+        } else {
+          toast.success(
+            `You're #${payload?.position ?? updated?.position ?? "?"} in the queue!`
+          );
+        }
+
+        return updated ?? entry;
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to join queue");
         return null;
       } finally {
         setLoading(false);
-      }
-    },
-    [supabase]
-  );
-
-  // Notify the next waiting entry for a given queue
-  const notifyNext = useCallback(
-    async (queueId: string) => {
-      const { data: next } = await supabase
-        .from("queue_entries")
-        .select("id")
-        .eq("queue_id", queueId)
-        .eq("status", "waiting")
-        .order("position", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (next) {
-        await supabase
-          .from("queue_entries")
-          .update({ status: "notified", notified_at: new Date().toISOString() })
-          .eq("id", next.id);
       }
     },
     [supabase]
@@ -140,9 +145,38 @@ export function useQueue() {
       try {
         const { data: entry } = await supabase
           .from("queue_entries")
-          .select("queue_id")
+          .select("queue_id, status, queue:queues(court_id)")
           .eq("id", entryId)
           .single();
+
+        if (entry?.status === "playing") {
+          const { data: sess } = await supabase
+            .from("court_sessions")
+            .select("id")
+            .eq("queue_entry_id", entryId)
+            .eq("status", "active")
+            .maybeSingle();
+
+          if (sess) {
+            await supabase
+              .from("court_sessions")
+              .update({ status: "completed" })
+              .eq("id", sess.id);
+          }
+
+          await supabase
+            .from("queue_entries")
+            .update({ status: "left" })
+            .eq("id", entryId);
+
+          const courtId = (entry?.queue as { court_id: string } | null)?.court_id;
+          if (courtId) {
+            await supabase.rpc("promote_waiting_player", { p_court_id: courtId });
+          }
+
+          toast.success("You've left the court.");
+          return;
+        }
 
         const { error } = await supabase
           .from("queue_entries")
@@ -153,7 +187,6 @@ export function useQueue() {
 
         if (entry?.queue_id) {
           await supabase.rpc("reorder_queue", { p_queue_id: entry.queue_id });
-          await notifyNext(entry.queue_id);
         }
 
         toast.success("You've left the queue.");
@@ -165,7 +198,7 @@ export function useQueue() {
         setLoading(false);
       }
     },
-    [supabase, notifyNext]
+    [supabase]
   );
 
   const getUserQueueEntry = useCallback(
@@ -183,7 +216,9 @@ export function useQueue() {
         .select("*")
         .eq("queue_id", queue.id)
         .eq("user_id", userId)
-        .in("status", ["waiting", "notified"])
+        .in("status", ["waiting", "notified", "playing"])
+        .order("joined_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       return data;
@@ -191,42 +226,12 @@ export function useQueue() {
     [supabase]
   );
 
+  /** @deprecated Sessions start automatically on join or when promoted. */
   const startSession = useCallback(
-    async (courtId: string, entryId: string, userId: string) => {
-      setLoading(true);
-      try {
-        const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-
-        const { error: sessionError } = await supabase
-          .from("court_sessions")
-          .insert({
-            court_id: courtId,
-            queue_entry_id: entryId,
-            user_id: userId,
-            expires_at: expiresAt,
-            status: "active",
-          });
-
-        if (sessionError) throw sessionError;
-
-        await supabase
-          .from("queue_entries")
-          .update({
-            status: "playing",
-            started_playing_at: new Date().toISOString(),
-          })
-          .eq("id", entryId);
-
-        toast.success("Court session started! You have 30 minutes.");
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Failed to start session"
-        );
-      } finally {
-        setLoading(false);
-      }
+    async (_courtId: string, _entryId: string, _userId: string) => {
+      toast.info("Sessions start automatically when you join or when a court opens.");
     },
-    [supabase]
+    []
   );
 
   const endSession = useCallback(
@@ -255,14 +260,10 @@ export function useQueue() {
             .eq("id", sess.queue_entry_id);
         }
 
-        // Notify next player
         if (sess?.court_id) {
-          const { data: queue } = await supabase
-            .from("queues")
-            .select("id")
-            .eq("court_id", sess.court_id)
-            .single();
-          if (queue) await notifyNext(queue.id);
+          await supabase.rpc("promote_waiting_player", {
+            p_court_id: sess.court_id,
+          });
         }
 
         toast.success("Session ended. Thanks for playing!");
@@ -274,7 +275,7 @@ export function useQueue() {
         setLoading(false);
       }
     },
-    [supabase, notifyNext]
+    [supabase]
   );
 
   const extendSession = useCallback(
@@ -288,6 +289,10 @@ export function useQueue() {
           .single();
 
         if (fetchErr || !session) throw new Error("Session not found");
+        if (!session.expires_at) {
+          toast.info("Your open session has no timer yet.");
+          return false;
+        }
         if (session.extended) {
           toast.info("You can only extend once.");
           return false;

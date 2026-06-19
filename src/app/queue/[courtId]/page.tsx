@@ -28,6 +28,12 @@ import { toast } from "sonner";
 import { AuthModal } from "@/components/auth/auth-modal";
 import { useCourtTraffic } from "@/hooks/use-court-traffic";
 import { estimateWaitForPosition, formatWaitMinutes } from "@/lib/court-traffic";
+import {
+  countActiveSessions,
+  getOpenTimerOrder,
+  openPlayMessage,
+  isSessionActive,
+} from "@/lib/court-availability";
 
 // ─── Countdown display ────────────────────────────────────────────────────────
 function CountdownTimer({
@@ -170,7 +176,7 @@ export default function QueuePage() {
   const inviteParam = searchParams.get("invite");
 
   const { user } = useAuth();
-  const { leaveQueue, startSession, endSession, extendSession, joinByInvite } =
+  const { leaveQueue, endSession, extendSession, joinByInvite } =
     useQueue();
 
   const supabase = createClient();
@@ -178,7 +184,7 @@ export default function QueuePage() {
 
   const [court, setCourt] = useState<Court | null>(null);
   const [entry, setEntry] = useState<QueueEntry | null>(null);
-  const [session, setSession] = useState<CourtSession | null>(null);
+  const [activeSessions, setActiveSessions] = useState<CourtSession[]>([]);
   const [queueAhead, setQueueAhead] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
   const [extendLoading, setExtendLoading] = useState(false);
@@ -233,16 +239,18 @@ export default function QueuePage() {
 
   // ── Load active session ──────────────────────────────────────────────────────
   const fetchSession = useCallback(async () => {
-    if (!entry) return;
     const { data } = await supabase
       .from("court_sessions")
       .select("*")
       .eq("court_id", courtId)
-      .eq("status", "active")
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-    setSession(data ?? null);
-  }, [supabase, courtId, entry]);
+      .eq("status", "active");
+    setActiveSessions((data ?? []).filter(isSessionActive));
+  }, [supabase, courtId]);
+
+  const session =
+    entry?.status === "playing"
+      ? activeSessions.find((s) => s.queue_entry_id === entry.id) ?? null
+      : null;
 
   // ── Pending queue people (to decide if extend is allowed) ────────────────────
   const [othersWaiting, setOthersWaiting] = useState(0);
@@ -289,7 +297,7 @@ export default function QueuePage() {
 
   useEffect(() => {
     fetchSession();
-  }, [fetchSession]);
+  }, [fetchSession, entry]);
 
   useEffect(() => {
     fetchOthersWaiting();
@@ -328,17 +336,9 @@ export default function QueuePage() {
     router.push("/app");
   };
 
-  const handleStart = async () => {
-    if (!user || !entry) return;
-    await startSession(courtId, entry.id, user.id);
-    fetchEntry();
-    fetchSession();
-  };
-
   const handleEnd = async () => {
     if (!session) return;
     await endSession(session.id);
-    setSession(null);
     router.push("/app");
   };
 
@@ -382,11 +382,14 @@ export default function QueuePage() {
     );
   }
 
-  const isPlaying = entry?.status === "playing" || session !== null;
+  const isPlaying = entry?.status === "playing";
+  const isOpenPlay = isPlaying && session && !session.expires_at;
+  const isTimedPlay = isPlaying && session?.expires_at;
   const isNotified = entry?.status === "notified";
   const isWaiting = entry?.status === "waiting";
+  const appOccupiedCount = countActiveSessions(activeSessions);
   const canExtend =
-    isPlaying && session && !session.extended && othersWaiting === 0;
+    isTimedPlay && session && !session.extended && othersWaiting === 0;
 
   const sportLabel = entry?.sport ?? court?.court_type ?? "court";
 
@@ -450,7 +453,7 @@ export default function QueuePage() {
               A court is open — your turn!
             </p>
             <p className="text-xs text-green-400/70">
-              Head to the court and tap &quot;Start Session&quot; to claim your spot.
+              Head to your assigned court — you&apos;ll be on shortly.
             </p>
           </div>
         </div>
@@ -478,15 +481,43 @@ export default function QueuePage() {
           )}
         </Badge>
 
-        {/* ── Playing view ── */}
-        {isPlaying && session ? (
+        {/* ── Open play (no timer yet) ── */}
+        {isOpenPlay && entry && (
+          <div className="w-full space-y-6">
+            <div className="frosted-surface rounded-3xl p-8 flex flex-col items-center gap-3 text-center">
+              <p className="text-sm text-muted-foreground uppercase tracking-widest">
+                Your court
+              </p>
+              <p className="text-6xl font-black text-green-400">
+                Court {entry.assigned_court_number ?? session?.court_number ?? "—"}
+              </p>
+              <p className="text-sm font-semibold text-green-400">Enjoy your time!</p>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
+                {openPlayMessage(
+                  getOpenTimerOrder(activeSessions, entry.id)
+                )}
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              className="w-full h-12 rounded-2xl gap-2"
+              onClick={handleEnd}
+            >
+              <LogOut className="w-4 h-4" />
+              Leave Court
+            </Button>
+          </div>
+        )}
+
+        {/* ── Timed session ── */}
+        {isTimedPlay && session && (
           <div className="w-full space-y-6">
             <div className="frosted-surface rounded-3xl p-8 flex flex-col items-center gap-3">
               <p className="text-sm text-muted-foreground uppercase tracking-widest">
-                Time Remaining
+                Court {entry?.assigned_court_number ?? session.court_number} · Time remaining
               </p>
               <CountdownTimer
-                expiresAt={session.expires_at}
+                expiresAt={session.expires_at!}
                 onExpire={async () => {
                   toast.info("Your session has ended.");
                   // End the session in DB so the court clears and next player is notified
@@ -544,7 +575,9 @@ export default function QueuePage() {
               End Session
             </Button>
           </div>
-        ) : isWaiting || isNotified ? (
+        )}
+
+        {(isWaiting || isNotified) && (
           /* ── Waiting / notified view ── */
           <div className="w-full space-y-6">
             <div className="frosted-surface rounded-3xl p-8 flex flex-col items-center gap-4">
@@ -572,7 +605,7 @@ export default function QueuePage() {
                     estimateWaitForPosition(
                       entry?.position ?? 1,
                       court?.num_courts ?? 1,
-                      !!session,
+                      appOccupiedCount,
                       recentOccupied
                     )
                   )}{" "}
@@ -586,20 +619,6 @@ export default function QueuePage() {
                 </div>
               )}
             </div>
-
-            {(entry?.position === 1 || isNotified) && (
-              <Button
-                className={`w-full h-12 rounded-2xl gap-2 font-semibold shadow-lg ${
-                  isNotified
-                    ? "bg-green-500 hover:bg-green-600 text-white shadow-green-500/20"
-                    : "gradient-primary text-primary-foreground shadow-primary/20"
-                }`}
-                onClick={handleStart}
-              >
-                <Zap className="w-4 h-4" />
-                {isNotified ? "Claim court now!" : "Start Session"}
-              </Button>
-            )}
 
             <Separator className="opacity-30" />
 
@@ -622,7 +641,9 @@ export default function QueuePage() {
               {leaveLoading ? "Leaving…" : "Leave Queue"}
             </Button>
           </div>
-        ) : (
+        )}
+
+        {!isPlaying && !isWaiting && !isNotified && (
           /* ── Not in queue ── */
           <div className="frosted-surface rounded-3xl p-8 flex flex-col items-center gap-4 w-full text-center">
             <p className="text-muted-foreground">

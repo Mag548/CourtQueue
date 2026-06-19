@@ -2,7 +2,41 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { CourtWithQueue, Court } from "@/lib/supabase/types";
+import { isSessionActive } from "@/lib/court-availability";
+import type { CourtWithQueue, Court, CourtSession } from "@/lib/supabase/types";
+
+async function fetchActiveSessions(
+  supabase: ReturnType<typeof createClient>,
+  courtId: string
+): Promise<CourtSession[]> {
+  const { data } = await supabase
+    .from("court_sessions")
+    .select("*")
+    .eq("court_id", courtId)
+    .eq("status", "active");
+
+  return (data ?? []).filter(isSessionActive);
+}
+
+function withQueueData(
+  court: Record<string, unknown>,
+  sessions: CourtSession[]
+): CourtWithQueue {
+  const queue = Array.isArray(court.queue) ? court.queue[0] : court.queue;
+
+  return {
+    ...(court as CourtWithQueue),
+    queue: queue
+      ? {
+          ...queue,
+          queue_entries: (queue.queue_entries || []).filter(
+            (e: { status: string }) => e.status === "waiting"
+          ),
+        }
+      : null,
+    active_sessions: sessions,
+  };
+}
 
 export function useCourts() {
   const [courts, setCourts] = useState<CourtWithQueue[]>([]);
@@ -10,7 +44,6 @@ export function useCourts() {
   const supabase = createClient();
 
   const fetchCourts = useCallback(async () => {
-    // Sweep expired sessions before fetching so the UI is always consistent
     await supabase.rpc("expire_old_sessions");
 
     const { data, error } = await supabase
@@ -32,32 +65,10 @@ export function useCourts() {
       return;
     }
 
-    const now = new Date().toISOString();
-
     const courtsWithSessions = await Promise.all(
       (data || []).map(async (court) => {
-        const { data: session } = await supabase
-          .from("court_sessions")
-          .select("*")
-          .eq("court_id", court.id)
-          .eq("status", "active")
-          .gt("expires_at", now)          // never return an expired session
-          .maybeSingle();
-
-        const queue = Array.isArray(court.queue) ? court.queue[0] : court.queue;
-
-        return {
-          ...court,
-          queue: queue
-            ? {
-                ...queue,
-                queue_entries: (queue.queue_entries || []).filter(
-                  (e: { status: string }) => e.status === "waiting"
-                ),
-              }
-            : null,
-          active_session: session,
-        } as CourtWithQueue;
+        const sessions = await fetchActiveSessions(supabase, court.id);
+        return withQueueData(court, sessions);
       })
     );
 
@@ -112,28 +123,8 @@ export function useCourt(courtId: string) {
 
     if (error || !data) return;
 
-    const { data: session } = await supabase
-      .from("court_sessions")
-      .select("*")
-      .eq("court_id", courtId)
-      .eq("status", "active")
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    const queue = Array.isArray(data.queue) ? data.queue[0] : data.queue;
-
-    setCourt({
-      ...data,
-      queue: queue
-        ? {
-            ...queue,
-            queue_entries: (queue.queue_entries || []).filter(
-              (e: { status: string }) => e.status === "waiting"
-            ),
-          }
-        : null,
-      active_session: session,
-    } as CourtWithQueue);
+    const sessions = await fetchActiveSessions(supabase, courtId);
+    setCourt(withQueueData(data, sessions));
     setLoading(false);
   }, [supabase, courtId]);
 

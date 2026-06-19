@@ -24,24 +24,23 @@ export function getRecentReportedOccupancy(
   return latest?.occupied_courts ?? 0;
 }
 
-/** Estimate wait time factoring in app queue + non-app occupied courts. */
+/** Estimate wait time factoring in app sessions + non-app occupied courts. */
 export function estimateWaitMinutes(params: {
   numCourts: number;
   queueLength: number;
-  hasActiveSession: boolean;
+  appOccupiedCount: number;
   reportedOccupied: number;
   sessionMinutes?: number;
 }): number {
   const {
     numCourts,
     queueLength,
-    hasActiveSession,
+    appOccupiedCount,
     reportedOccupied,
     sessionMinutes = SESSION_MINUTES,
   } = params;
 
-  const appOccupied = hasActiveSession ? 1 : 0;
-  const totalOccupied = Math.min(numCourts, appOccupied + reportedOccupied);
+  const totalOccupied = Math.min(numCourts, appOccupiedCount + reportedOccupied);
   const freeCourts = numCourts - totalOccupied;
 
   if (queueLength === 0 && freeCourts > 0) return 0;
@@ -60,13 +59,13 @@ export function estimateWaitMinutes(params: {
 export function estimateWaitForPosition(
   position: number,
   numCourts: number,
-  hasActiveSession: boolean,
+  appOccupiedCount: number,
   reportedOccupied: number
 ): number {
   return estimateWaitMinutes({
     numCourts,
     queueLength: Math.max(0, position - 1),
-    hasActiveSession,
+    appOccupiedCount,
     reportedOccupied,
   });
 }
