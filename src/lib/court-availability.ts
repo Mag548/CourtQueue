@@ -45,18 +45,27 @@ export function getOpenTimerOrder(
   return idx >= 0 ? idx + 1 : 0;
 }
 
-export function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+export function courtAssignmentMessage(
+  courtNumber: number,
+  activeSessionCount: number
+): string {
+  if (courtNumber === 1) {
+    if (activeSessionCount <= 1) {
+      return "You are on Court #1. Since you're the only one here, if all the courts fill up and someone joins the queue, your 30 min timer will start.";
+    }
+    return "You are on Court #1. You're first in line — if all the courts fill up and someone joins the queue, your 30 min timer will start.";
+  }
+
+  return `You are on Court #${courtNumber}. When the player on Court #${courtNumber - 1} leaves, you'll be next — your 30 min timer will start if someone joins the queue.`;
 }
 
-export function noWaitTimerMessage(timerOrder: number): string {
-  if (timerOrder <= 0) {
-    return "No time limit while nobody is waiting in line.";
+export function courtTimerAlertMessage(
+  courtNumber: number,
+  event: "prev_left" | "prev_timed"
+): string {
+  const prevCourt = courtNumber - 1;
+  if (event === "prev_left") {
+    return `Court #${prevCourt} is open. You're on Court #${courtNumber} — your 30 min timer will start if someone joins the queue.`;
   }
-  if (timerOrder === 1) {
-    return "No time limit while nobody is waiting — you'll be the first to get a timer when someone joins the queue.";
-  }
-  return `No time limit while nobody is waiting — you'll be the ${ordinal(timerOrder)} to get a timer when someone joins the queue.`;
+  return `Court #${prevCourt}'s timer has started. You're on Court #${courtNumber} — your timer will start if another person joins the queue.`;
 }

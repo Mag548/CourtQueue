@@ -286,6 +286,10 @@ export type Database = {
         Returns: undefined
       }
       reorder_queue: { Args: { p_queue_id: string }; Returns: undefined }
+      sync_court_timers: {
+        Args: { p_court_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

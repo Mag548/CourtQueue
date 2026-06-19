@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   MapPin,
   Clock,
-  Timer,
   Users,
   Copy,
   Check,
@@ -30,10 +29,10 @@ import { useCourtTraffic } from "@/hooks/use-court-traffic";
 import { estimateWaitForPosition, formatWaitMinutes } from "@/lib/court-traffic";
 import {
   countActiveSessions,
-  getOpenTimerOrder,
-  noWaitTimerMessage,
+  courtAssignmentMessage,
   isSessionActive,
 } from "@/lib/court-availability";
+import { useCourtTimerAlerts } from "@/hooks/use-court-timer-alerts";
 
 // ─── Countdown display ────────────────────────────────────────────────────────
 function CountdownTimer({
@@ -176,8 +175,7 @@ export default function QueuePage() {
   const inviteParam = searchParams.get("invite");
 
   const { user } = useAuth();
-  const { leaveQueue, endSession, extendSession, joinByInvite } =
-    useQueue();
+  const { leaveQueue, endSession, joinByInvite } = useQueue();
 
   const supabase = createClient();
   const { recentOccupied } = useCourtTraffic(courtId);
@@ -187,7 +185,6 @@ export default function QueuePage() {
   const [activeSessions, setActiveSessions] = useState<CourtSession[]>([]);
   const [queueAhead, setQueueAhead] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
-  const [extendLoading, setExtendLoading] = useState(false);
   const [leaveLoading, setLeaveLoading] = useState(false);
 
   // ── Load court info ──────────────────────────────────────────────────────────
@@ -239,6 +236,7 @@ export default function QueuePage() {
 
   // ── Load active session ──────────────────────────────────────────────────────
   const fetchSession = useCallback(async () => {
+    await supabase.rpc("sync_court_timers", { p_court_id: courtId });
     const { data } = await supabase
       .from("court_sessions")
       .select("*")
@@ -252,24 +250,9 @@ export default function QueuePage() {
       ? activeSessions.find((s) => s.queue_entry_id === entry.id) ?? null
       : null;
 
-  // ── Pending queue people (to decide if extend is allowed) ────────────────────
-  const [othersWaiting, setOthersWaiting] = useState(0);
-  const fetchOthersWaiting = useCallback(async () => {
-    if (!user) return;
-    const { data: queue } = await supabase
-      .from("queues")
-      .select("id")
-      .eq("court_id", courtId)
-      .single();
-    if (!queue) return;
-    const { count } = await supabase
-      .from("queue_entries")
-      .select("*", { count: "exact", head: true })
-      .eq("queue_id", queue.id)
-      .eq("status", "waiting")
-      .neq("user_id", user.id);
-    setOthersWaiting(count ?? 0);
-  }, [supabase, courtId, user]);
+  const userCourtNumber =
+    entry?.assigned_court_number ?? session?.court_number ?? null;
+  useCourtTimerAlerts(activeSessions, userCourtNumber, entry?.id ?? null);
 
   // ── Handle invite param ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -299,10 +282,6 @@ export default function QueuePage() {
     fetchSession();
   }, [fetchSession, entry]);
 
-  useEffect(() => {
-    fetchOthersWaiting();
-  }, [fetchOthersWaiting]);
-
   // ── Realtime subscription ────────────────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
@@ -310,10 +289,7 @@ export default function QueuePage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "queue_entries" },
-        () => {
-          fetchEntry();
-          fetchOthersWaiting();
-        }
+        () => fetchEntry()
       )
       .on(
         "postgres_changes",
@@ -325,7 +301,7 @@ export default function QueuePage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, courtId, fetchEntry, fetchSession, fetchOthersWaiting]);
+  }, [supabase, courtId, fetchEntry, fetchSession]);
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   const handleLeave = async () => {
@@ -340,14 +316,6 @@ export default function QueuePage() {
     if (!session) return;
     await endSession(session.id);
     router.push("/app");
-  };
-
-  const handleExtend = async () => {
-    if (!session) return;
-    setExtendLoading(true);
-    await extendSession(session.id);
-    setExtendLoading(false);
-    fetchSession();
   };
 
   const handleDirections = () => {
@@ -388,8 +356,6 @@ export default function QueuePage() {
   const isNotified = entry?.status === "notified";
   const isWaiting = entry?.status === "waiting";
   const appOccupiedCount = countActiveSessions(activeSessions);
-  const canExtend =
-    isTimedPlay && session && !session.extended && othersWaiting === 0;
 
   const sportLabel = entry?.sport ?? court?.court_type ?? "court";
 
@@ -493,8 +459,9 @@ export default function QueuePage() {
               </p>
               <p className="text-sm font-semibold text-green-400">Enjoy your time!</p>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
-                {noWaitTimerMessage(
-                  getOpenTimerOrder(activeSessions, entry.id)
+                {courtAssignmentMessage(
+                  userCourtNumber ?? 1,
+                  appOccupiedCount
                 )}
               </p>
             </div>
@@ -529,31 +496,6 @@ export default function QueuePage() {
                 {sportLabel} · {court?.name}
               </p>
             </div>
-
-            {canExtend && (
-              <Button
-                variant="outline"
-                className="w-full h-12 rounded-2xl gap-2 border-primary/40 text-primary hover:bg-primary/10"
-                onClick={handleExtend}
-                disabled={extendLoading}
-              >
-                <Timer className="w-4 h-4" />
-                {extendLoading ? "Extending…" : "+15 min (no one waiting)"}
-              </Button>
-            )}
-
-            {session.extended && (
-              <p className="text-center text-xs text-muted-foreground">
-                Session already extended — can only extend once.
-              </p>
-            )}
-
-            {othersWaiting > 0 && (
-              <p className="text-center text-xs text-muted-foreground">
-                {othersWaiting} {othersWaiting === 1 ? "person" : "people"}{" "}
-                waiting — extension unavailable.
-              </p>
-            )}
 
             <Separator className="opacity-30" />
 

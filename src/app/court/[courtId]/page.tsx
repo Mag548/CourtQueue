@@ -30,10 +30,10 @@ import {
 import {
   countActiveSessions,
   getAvailableCourts,
-  getOpenTimerOrder,
-  noWaitTimerMessage,
+  courtAssignmentMessage,
   isSessionActive,
 } from "@/lib/court-availability";
+import { useCourtTimerAlerts } from "@/hooks/use-court-timer-alerts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PageState = "loading" | "auth" | "queue" | "on_court_untimed" | "on_court_timed" | "join";
@@ -107,8 +107,9 @@ export default function CourtScanPage() {
     setCourt(courtData);
     if (courtData.court_type === "pickleball") setSport("pickleball");
 
-    // Expire old sessions
+    // Expire old sessions and clear timers when nobody is waiting
     await supabase.rpc("expire_old_sessions");
+    await supabase.rpc("sync_court_timers", { p_court_id: courtId });
 
     // Active session?
     const { data: sessions } = await supabase
@@ -167,6 +168,10 @@ export default function CourtScanPage() {
   }, [authLoading, user, court, userEntry, activeSessions, queueLen]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const userCourtNumber =
+    userEntry?.assigned_court_number ?? userSession?.court_number ?? null;
+  useCourtTimerAlerts(activeSessions, userCourtNumber, userEntry?.id ?? null);
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleJoin = async () => {
@@ -256,7 +261,7 @@ export default function CourtScanPage() {
               <p className="text-sm text-muted-foreground">
                 {queueLen > 0
                   ? `${queueLen} player${queueLen !== 1 ? "s" : ""} waiting — sign in to grab your spot`
-                  : "Courts are free — sign in to start your session"}
+                  : "Courts are free — sign in to join the queue"}
               </p>
               <Button
                 className="w-full h-12 rounded-2xl gradient-primary font-semibold text-primary-foreground shadow-lg shadow-primary/20"
@@ -286,8 +291,9 @@ export default function CourtScanPage() {
               </p>
               <p className="text-sm font-semibold text-green-400">Enjoy your time!</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {noWaitTimerMessage(
-                  getOpenTimerOrder(activeSessions, userEntry.id)
+                {courtAssignmentMessage(
+                  userCourtNumber ?? 1,
+                  appOccupiedCount
                 )}
               </p>
             </div>

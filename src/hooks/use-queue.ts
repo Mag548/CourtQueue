@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { QueueEntry } from "@/lib/supabase/types";
+import { courtAssignmentMessage } from "@/lib/court-availability";
 import { toast } from "sonner";
 
 const ACTIVE_QUEUE_STATUSES = ["waiting", "notified", "playing"] as const;
@@ -119,9 +120,17 @@ export function useQueue() {
         };
 
         if (payload?.assigned && payload.court_number) {
-          toast.success(
-            `You're on Court ${payload.court_number}! No time limit while nobody is waiting in line.`
-          );
+          const { count: activeCount } = await supabase
+            .from("court_sessions")
+            .select("*", { count: "exact", head: true })
+            .eq("court_id", courtId)
+            .eq("status", "active");
+          toast.success(`You're on Court ${payload.court_number}!`, {
+            description: courtAssignmentMessage(
+              payload.court_number,
+              activeCount ?? 1
+            ),
+          });
         } else {
           toast.success(
             `You're #${payload?.position ?? updated?.position ?? "?"} in the queue!`
@@ -172,6 +181,7 @@ export function useQueue() {
           const courtId = (entry?.queue as { court_id: string } | null)?.court_id;
           if (courtId) {
             await supabase.rpc("promote_waiting_player", { p_court_id: courtId });
+            await supabase.rpc("sync_court_timers", { p_court_id: courtId });
           }
 
           toast.success("You've left the court.");
@@ -187,6 +197,10 @@ export function useQueue() {
 
         if (entry?.queue_id) {
           await supabase.rpc("reorder_queue", { p_queue_id: entry.queue_id });
+          const courtId = (entry?.queue as { court_id: string } | null)?.court_id;
+          if (courtId) {
+            await supabase.rpc("sync_court_timers", { p_court_id: courtId });
+          }
         }
 
         toast.success("You've left the queue.");
@@ -226,14 +240,6 @@ export function useQueue() {
     [supabase]
   );
 
-  /** @deprecated Sessions start automatically on join or when promoted. */
-  const startSession = useCallback(
-    async (_courtId: string, _entryId: string, _userId: string) => {
-      toast.info("Sessions start automatically when you join or when a court opens.");
-    },
-    []
-  );
-
   const endSession = useCallback(
     async (sessionId: string) => {
       setLoading(true);
@@ -264,6 +270,7 @@ export function useQueue() {
           await supabase.rpc("promote_waiting_player", {
             p_court_id: sess.court_id,
           });
+          await supabase.rpc("sync_court_timers", { p_court_id: sess.court_id });
         }
 
         toast.success("Session ended. Thanks for playing!");
@@ -271,50 +278,6 @@ export function useQueue() {
         toast.error(
           err instanceof Error ? err.message : "Failed to end session"
         );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [supabase]
-  );
-
-  const extendSession = useCallback(
-    async (sessionId: string) => {
-      setLoading(true);
-      try {
-        const { data: session, error: fetchErr } = await supabase
-          .from("court_sessions")
-          .select("expires_at, extended")
-          .eq("id", sessionId)
-          .single();
-
-        if (fetchErr || !session) throw new Error("Session not found");
-        if (!session.expires_at) {
-          toast.info("Your open session has no timer yet.");
-          return false;
-        }
-        if (session.extended) {
-          toast.info("You can only extend once.");
-          return false;
-        }
-
-        const newExpiry = new Date(
-          new Date(session.expires_at).getTime() + 15 * 60 * 1000
-        ).toISOString();
-
-        const { error } = await supabase
-          .from("court_sessions")
-          .update({ expires_at: newExpiry, extended: true })
-          .eq("id", sessionId);
-
-        if (error) throw error;
-        toast.success("Session extended by 15 minutes!");
-        return true;
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Failed to extend session"
-        );
-        return false;
       } finally {
         setLoading(false);
       }
@@ -392,9 +355,7 @@ export function useQueue() {
     joinQueue,
     leaveQueue,
     getUserQueueEntry,
-    startSession,
     endSession,
-    extendSession,
     generateInviteCode,
     joinByInvite,
     loading,

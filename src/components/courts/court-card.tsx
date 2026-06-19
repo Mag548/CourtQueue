@@ -44,8 +44,7 @@ import {
 import {
   countActiveSessions,
   getAvailableCourts,
-  getOpenTimerOrder,
-  noWaitTimerMessage,
+  courtAssignmentMessage,
 } from "@/lib/court-availability";
 
 interface CourtCardProps {
@@ -508,8 +507,11 @@ export function CourtCard({ court, onClose, onDirections }: CourtCardProps) {
                     </p>
                     {userSession && !userSession.expires_at ? (
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        {noWaitTimerMessage(
-                          getOpenTimerOrder(court.active_sessions, userEntry.id)
+                        {courtAssignmentMessage(
+                          userEntry.assigned_court_number ??
+                            userSession.court_number ??
+                            1,
+                          appOccupiedCount
                         )}
                       </p>
                     ) : (

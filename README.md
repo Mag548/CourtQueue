@@ -14,7 +14,6 @@ A modern, real-time court booking and queue management app for public tennis and
 - **Interactive Map** — Browse 24+ public courts on a Google Maps view, sorted by proximity to your location
 - **Real-time Queue System** — Join a live queue for any court; position updates instantly for everyone
 - **30-Minute Sessions** — Court sessions are timed with a live countdown; the next player is automatically notified when a spot opens
-- **Session Extension** — Extend your session by 15 minutes if no one else is waiting (one-time per session)
 - **Invite Friends** — Generate a shareable invite code/link so others can join your booking slot
 - **Active Sessions Tab** — See and manage all your queued or active bookings from a single sidebar panel
 - **In-Map Directions** — Get turn-by-turn directions drawn directly on the map, or open Google Maps externally
