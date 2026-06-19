@@ -290,6 +290,11 @@ export type Database = {
         Args: { p_court_id: string }
         Returns: undefined
       }
+      admin_clear_court: {
+        Args: { p_court_id: string }
+        Returns: Json
+      }
+      is_app_admin: { Args: Record<string, never>; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

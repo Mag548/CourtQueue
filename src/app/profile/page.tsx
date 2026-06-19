@@ -22,6 +22,8 @@ import { Loader2, User, History, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { QueueEntry } from "@/lib/supabase/types";
 import { formatDistanceToNow } from "date-fns";
+import { isAdminEmail } from "@/lib/admin";
+import { AdminCourtClearPanel } from "@/components/admin/admin-court-clear-panel";
 
 export default function ProfilePage() {
   const { user, profile, loading, updateProfile, signOut } = useAuth();
@@ -109,6 +111,8 @@ export default function ProfilePage() {
   }
 
   if (!user) return null;
+
+  const isAdmin = isAdminEmail(user.email);
 
   const statusColors = {
     waiting: "bg-yellow-500/20 text-yellow-400",
@@ -221,6 +225,12 @@ export default function ProfilePage() {
                 </form>
               </CardContent>
             </Card>
+
+            {isAdmin && (
+              <div className="mt-4">
+                <AdminCourtClearPanel />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="history">
