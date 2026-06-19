@@ -1,29 +1,38 @@
 /**
  * Sync Oakville ArcGIS tennis/pickleball courts into Supabase.
+ * Oakville ArcGIS is the sole source of court locations — every sync upserts
+ * GIS parks and deactivates anything not in the latest feed.
  *
- * Run: npm run sync:oakville
+ * Run: npm run sync
  */
 
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { loadEnvLocal } from "./load-env-local.mjs";
 import {
   fetchOakvilleCourts,
   normalizeParkKey,
 } from "./fetchOakvilleCourts.mjs";
+
+loadEnvLocal();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const DATA_PATH = path.join(ROOT, "data", "oakville-courts.json");
 
 const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ??
-  process.env.SUPABASE_URL ??
-  "https://nxlirkxgjclfdgizxwsq.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const SUPABASE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54bGlya3hnamNsZmRnaXp4d3NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjMzODYsImV4cCI6MjA5NzI5OTM4Nn0.LATQGMqZUkZGM_5syvGMWRo_VGvvfFFuovoO9gIAtfg";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error(
+    "Missing Supabase credentials. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local"
+  );
+  process.exit(1);
+}
 
 const headers = {
   apikey: SUPABASE_KEY,
@@ -124,6 +133,20 @@ async function upsertCourt(court, existingId) {
   return res.json();
 }
 
+async function deactivateCourtsExcept(keepIds) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/deactivate_courts_except`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ p_keep_ids: keepIds }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`${res.status}: ${await res.text()}`);
+  }
+
+  return res.json();
+}
+
 async function main() {
   console.log("Fetching Oakville ArcGIS courts…");
   const oakvilleCourts = await fetchOakvilleCourts();
@@ -141,6 +164,7 @@ async function main() {
   let updated = 0;
   let inserted = 0;
   let skipped = 0;
+  const syncedIds = new Set();
 
   for (const court of oakvilleCourts) {
     console.log(`[${court.name}]`);
@@ -152,6 +176,7 @@ async function main() {
 
     try {
       const courtId = await upsertCourt(court, match?.id ?? null);
+      syncedIds.add(courtId);
       if (match) {
         console.log(`  ✓ updated (matched "${match.name}")`);
         updated++;
@@ -171,10 +196,22 @@ async function main() {
     }
   }
 
+  let deactivated = 0;
+  try {
+    deactivated = await deactivateCourtsExcept([...syncedIds]);
+    if (deactivated > 0) {
+      console.log(`\nDeactivated ${deactivated} court(s) not in ArcGIS feed.`);
+    }
+  } catch (err) {
+    console.error(`\nFailed to deactivate non-ArcGIS courts: ${err.message}`);
+    process.exit(1);
+  }
+
   console.log("\n═══════════════════════════");
   console.log(`ArcGIS parks : ${oakvilleCourts.length}`);
   console.log(`Updated      : ${updated}`);
   console.log(`Inserted     : ${inserted}`);
+  console.log(`Deactivated  : ${deactivated}`);
   console.log(`Skipped      : ${skipped}`);
 }
 

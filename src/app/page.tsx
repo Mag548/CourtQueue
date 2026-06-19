@@ -79,7 +79,7 @@ export default function LandingPage() {
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.06] backdrop-blur-md px-4 py-2 text-xs font-medium text-white/70 shadow-lg">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Live in Oakville · Burlington · Halton Hills
+            Live in Oakville
           </div>
         </div>
 

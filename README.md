@@ -1,6 +1,6 @@
 # CourtQueue
 
-A modern, real-time court booking and queue management app for public tennis and pickleball courts in Oakville, Burlington, and Halton Hills, Ontario.
+A modern, real-time court booking and queue management app for public tennis and pickleball courts in Oakville, Ontario. Court locations are synced from the Town of Oakville ArcGIS open data layer.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
@@ -11,7 +11,7 @@ A modern, real-time court booking and queue management app for public tennis and
 
 ## Features
 
-- **Interactive Map** — Browse 24+ public courts on a Google Maps view, sorted by proximity to your location
+- **Interactive Map** — Browse public Oakville courts on a Google Maps view, sorted by proximity to your location
 - **Real-time Queue System** — Join a live queue for any court; position updates instantly for everyone
 - **30-Minute Sessions** — Court sessions are timed with a live countdown; the next player is automatically notified when a spot opens
 - **Invite Friends** — Generate a shareable invite code/link so others can join your booking slot
@@ -33,7 +33,7 @@ A modern, real-time court booking and queue management app for public tennis and
 | Auth | Supabase Auth (Google OAuth + Email) |
 | Realtime | Supabase Realtime subscriptions |
 | Maps | Google Maps JavaScript API |
-| Geocoding | Nominatim (OpenStreetMap) |
+| Geocoding | Town of Oakville ArcGIS (MapServer layer 3) |
 | Deployment | Vercel |
 
 ---
@@ -72,6 +72,16 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Sync court data
+
+Court locations are loaded from the Town of Oakville ArcGIS service (not a hand-maintained list):
+
+```bash
+npm run sync
+```
+
+This fetches layer 3 from the Oakville open GIS map, upserts parks into Supabase, and deactivates any courts that are no longer in that feed.
+
 ---
 
 ## Database Schema
@@ -88,11 +98,7 @@ The app uses the following Supabase tables:
 
 ## Courts Coverage
 
-24 public courts across three municipalities:
-
-- **Oakville** — Shell Park, Maplegrove Park, River Oaks Park, Hopedale Park, Trafalgar Park Community Centre, Sovereign Park, Valleybrook Park, Fowley Park, and more
-- **Burlington** — Ireland Park, Tansley Woods Park, Optimist Park, Sycamore Park, Brant Hills Community Centre, and more
-- **Halton Hills** — Eighth Line Park, Prospect Park, Emmerson Park, Joseph Gibbons Courts
+Public tennis and pickleball courts in **Oakville** — sourced from the [Town of Oakville ArcGIS communications map](https://maps.oakville.ca/oakgis/rest/services/ArcGISOnline/AGO_Communications/MapServer/3) and consolidated by park. Run `npm run sync` to refresh locations from GIS.
 
 ---
 
