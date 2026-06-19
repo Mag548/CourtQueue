@@ -310,8 +310,8 @@ export default function HomePage() {
     </div>
   );
 
-  const MobileSearchSlot = () => (
-    <>
+  const MobileSheetFilters = () => (
+    <div className="px-3 pb-3 space-y-2 shrink-0">
       <PlacesSearch onLocationSelect={handlePlaceSelect} />
       <div className="flex gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
         {(["all", "tennis", "pickleball"] as const).map((f) => (
@@ -329,7 +329,7 @@ export default function HomePage() {
           </button>
         ))}
       </div>
-    </>
+    </div>
   );
 
   // ── Shared map ────────────────────────────────────────────────────────────
@@ -437,7 +437,7 @@ export default function HomePage() {
           ["--mobile-header-h" as string]:
             mobileSheet === "open"
               ? "max(0.75rem, env(safe-area-inset-top, 0px))"
-              : "var(--mobile-header-with-search-h)",
+              : "calc(5.75rem + env(safe-area-inset-top, 0px))",
         }}
       >
 
@@ -460,7 +460,6 @@ export default function HomePage() {
           filter={filter}
           onFilterChange={setFilter}
           showSportToggle
-          mobileSearchSlot={<MobileSearchSlot />}
           dismissed={mobileSheet === "open"}
         />
 
@@ -478,7 +477,7 @@ export default function HomePage() {
           style={
             mobileSheet === "open"
               ? undefined
-              : { top: "calc(var(--mobile-header-with-search-h) + 0.5rem)" }
+              : { top: "calc(var(--mobile-header-h) + 0.5rem)" }
           }
         >
           {locating
@@ -578,7 +577,10 @@ export default function HomePage() {
                   />
                 </div>
               ) : (
-                <CourtList />
+                <>
+                  <MobileSheetFilters />
+                  <CourtList />
+                </>
               )}
             </div>
           </div>

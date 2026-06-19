@@ -43,7 +43,6 @@
 :root {
   --mobile-nav-h: calc(4rem + 1.5rem + env(safe-area-inset-bottom, 0px));
   --mobile-header-h: calc(5.75rem + env(safe-area-inset-top, 0px));
-  --mobile-header-with-search-h: calc(13.5rem + env(safe-area-inset-top, 0px));
   --background: 0 0% 7%;
   --foreground: 30 5% 90%;
   --card: 0 0% 12%;
